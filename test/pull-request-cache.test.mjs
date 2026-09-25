@@ -187,3 +187,57 @@ test("two refreshes that are not forced share one gh invocation", async t => {
   // is what keeps that from doubling the network cost.
   assert.equal(gh.callCount(), 1);
 });
+
+test("a fetch's duration and outcome go to the log, not to any command panel", async t => {
+  // The command log only ever sees an action's own git and gh calls; the fetch behind a
+  // badge runs on a timer with no action to attribute it to, so it needs a home of its own.
+  const gh = installScriptedGh(t, [{ output: [pullRequestJson()] }]);
+  /** @type {string[]} */
+  const lines = [];
+  const service = new PullRequestService(gh.cwd, line => lines.push(line));
+
+  await service.refresh(TIPS, true);
+
+  assert.ok(lines.some(line => line.startsWith("gh pr list")));
+  assert.ok(lines.some(line => /→ ok in \d+ms/.test(line)));
+});
+
+test("a failed fetch logs why, since the badge's own sentence cannot say", async t => {
+  // "GitHub did not answer in time" reads the same whether gh was killed, GitHub 504'd, or
+  // the query itself took too long — the log is where that difference has to show up.
+  const root = scratchRoot(t, "gsm-pr-log-");
+  const binDirectory = join(root, "fakebin");
+  mkdirSync(binDirectory, { recursive: true });
+  writeFileSync(
+    join(binDirectory, "gh"),
+    `#!/usr/bin/env node
+process.stdin.resume();
+process.stdin.on("end", () => {
+  process.stderr.write("GraphQL: the query took too long to execute.\\n");
+  process.exit(1);
+});
+`,
+    { mode: 0o755 }
+  );
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDirectory}:${originalPath}`;
+  t.after(() => {
+    process.env.PATH = originalPath;
+  });
+
+  /** @type {string[]} */
+  const lines = [];
+  const service = new PullRequestService(root, line => lines.push(line));
+
+  await service.refresh(TIPS, true);
+
+  assert.equal(
+    service.availabilityReason(),
+    "GitHub did not answer the pull request query in time. Try again in a moment."
+  );
+  assert.ok(
+    lines.some(
+      line => line.includes("failed after") && line.includes("unreachable")
+    )
+  );
+});

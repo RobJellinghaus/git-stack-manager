@@ -142,7 +142,21 @@ export class PullRequestService {
   private lastAttemptSucceeded: boolean | null = null;
   private lastError: string | null = null;
 
-  constructor(private readonly cwd: string) {}
+  constructor(
+    private readonly cwd: string,
+    /**
+     * Where a fetch attempt's duration and outcome go. Defaulted to a no-op rather than
+     * made optional at each call site, since every caller but the diagnostic log itself
+     * wants the same nothing.
+     *
+     * This runs on a timer with no user action to blame it on, so the per-action command
+     * log a submit or a rebase populates never sees it — see `runGh` below for why that
+     * log stays scoped to actions. A timeout that only ever says "GitHub did not answer
+     * in time" cannot be told apart from a slow query, a dropped connection, or GitHub
+     * genuinely rate-limiting this token, and the difference matters for what to do next.
+     */
+    private readonly log: (line: string) => void = () => {}
+  ) {}
 
   /** How the last fetch went, for the header's freshness indicator. */
   refreshState(): PullRequestRefreshState {
@@ -370,15 +384,31 @@ export class PullRequestService {
    *
    * The failure is described here and rethrown: the caller keeps the previous snapshot on
    * screen, so the panel needs a sentence explaining the gap even though nothing is thrown
-   * at the user.
+   * at the user. Every attempt also goes to `this.log`, since the badge's own sentence
+   * — "GitHub did not answer in time" — cannot tell a slow query apart from a killed one
+   * or a short one that still 504'd, and the log line below can.
    */
   private async runGh(args: string[]): Promise<string> {
+    // A search query can run past a thousand characters; the log wants to know one ran,
+    // not to reproduce it.
+    const summary = args
+      .map(arg => (arg.length > 200 ? `<${arg.length} chars omitted>` : arg))
+      .join(" ");
+    const startedAt = Date.now();
+    this.log(`gh ${summary}`);
     try {
-      return await spawnGh(args, {
+      const output = await spawnGh(args, {
         cwd: this.cwd,
         timeoutMilliseconds: FETCH_TIMEOUT_MILLISECONDS,
       });
+      this.log(`  → ok in ${Date.now() - startedAt}ms`);
+      return output;
     } catch (error: unknown) {
+      const kind = classifyGhFailure(error);
+      const detail = ghFailureDetail(error) || errorMessage(error);
+      this.log(
+        `  → failed after ${Date.now() - startedAt}ms (${kind}): ${detail}`
+      );
       this.availability = { usable: false, reason: describeFailure(error) };
       throw error;
     }

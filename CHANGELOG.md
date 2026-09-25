@@ -3,6 +3,14 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-25
+
+### Added
+
+- A **Git Stack Manager** output channel logs every pull request fetch's duration and outcome.
+  Branch badges fetch on a timer with no action to blame a failure on, so this is where a stale
+  "PRs stale — never loaded" indicator sends you, rather than the command log.
+
 ## [0.11.1] - 2026-09-25
 
 ### Fixed
