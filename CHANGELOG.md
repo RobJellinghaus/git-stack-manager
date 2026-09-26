@@ -3,6 +3,38 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2026-09-30
+
+### Changed
+
+- Pull request status is looked up through GitHub's GraphQL API — by branch name and by
+  tip commit, in batches — rather than through `gh pr list --search`. Free-text search
+  read an index that trailed a just-opened pull request and, on a monorepo with many
+  checks, could time out and return nothing; the structured lookup does neither.
+
+### Added
+
+- **Refresh PRs** counts off the branches it has answered while its fetch is still in
+  flight, for a stack with enough branches to make that fetch worth watching.
+- A **Git Stack Manager** output channel logs every pull request fetch's duration and outcome.
+  Branch badges fetch on a timer with no action to blame a failure on, so this is where a stale
+  "PRs stale — never loaded" indicator sends you, rather than the command log.
+
+### Fixed
+
+- `just package` no longer bundles `.tmp/`, the repo-local scratch directory, into the `.vsix`.
+- A commit that a later, stacked pull request also contains no longer borrows that pull
+  request's badge on a branch merged out from under it — only the pull request a commit
+  actually heads claims it now.
+- The branch-name lookup asks GitHub for the newest pull requests first, so a name reused by
+  more than three no longer shows a stale closed one in place of the current open one.
+- The CI badge reads a pull request's own head commit rather than the branch's local tip, so
+  a branch amended or rebased since its last push keeps the pull request's real CI result.
+- Every check on a pull request being cancelled now shows the CI badge as a failure, matching
+  GitHub's own rollup, rather than showing no glyph at all.
+- One batch's failed round trip no longer discards every other batch's badges; a stack with
+  many branches keeps whatever answered even when one batch failed.
+
 ## [0.16.1] - 2026-09-29
 
 ### Changed
