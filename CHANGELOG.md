@@ -3,6 +3,14 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-09-28
+
+### Changed
+
+- Each of the four rebase entries on a stacked commit says what it moves. The two `gh stack` ones
+  replay recorded layers; the two below walk the graph, so they carry a fork above the commit and a
+  branch no stack record names, and they re-record the bases of every layer they move.
+
 ## [0.15.0] - 2026-09-28
 
 ### Added

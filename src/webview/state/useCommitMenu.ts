@@ -129,7 +129,8 @@ export function commitMenuItems(
       { head: "gh stack" },
       {
         label: "Rebase stack (all layers)",
-        description: "gh stack rebase — realign every layer bottom-to-top",
+        description:
+          "gh stack rebase — fetches trunk, then replays every recorded layer onto it, bottom-to-top",
         run: () =>
           actions.onGhStack(
             { command: "rebase", scope: "all", branch: stacked.name },
@@ -139,7 +140,7 @@ export function commitMenuItems(
       {
         label: "Rebase this layer and above",
         description:
-          "gh stack rebase --upstack — checks this layer out first, because gh stack starts from HEAD",
+          "gh stack rebase --upstack — the same, from this layer up, leaving those below alone. Checks this layer out first, since gh stack starts from HEAD",
         run: () =>
           actions.onGhStack(
             { command: "rebase", scope: "upstack", branch: stacked.name },
@@ -195,15 +196,19 @@ export function commitMenuItems(
       description: "Combine this commit with its parent, keeping both messages",
       run: () => actions.onFold(commit),
     },
+    // These two move commits; the `gh stack` pair above moves layers. Git walks the graph, so
+    // these carry a fork above the commit and branches no stack record names — which is why both
+    // families stay rather than collapsing into one entry.
     {
       label: `Rebase ${moving} onto ${model.trunkRef || "trunk"}`,
-      description: "Fetch trunk, then replay these commits on its tip",
+      description:
+        "Fetch trunk, then replay these commits on its tip — every commit above this one, stacked or not. Re-records the bases of any gh stack layer it moves",
       run: () => actions.onRebase(commit, "trunk"),
     },
     {
       label: `Rebase ${moving} onto stack base`,
       description:
-        "Re-parent onto the commit this stack forked from, without pulling in newer trunk commits",
+        "Re-parent these commits on the one this stack forked from, without pulling in newer trunk commits. Re-records the bases of any gh stack layer it moves",
       run: () => actions.onRebase(commit, "base"),
     }
   );

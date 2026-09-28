@@ -57,6 +57,32 @@ test("the stack commands that read HEAD wait for a checkout, and offer it", asyn
   await expect(menu).not.toContainText("Checkout trim-utils");
 });
 
+test("the two rebase families say apart what each one moves", async ({
+  smartlog,
+}) => {
+  const menu = smartlog.locator("#menu");
+  await smartlog
+    .getByText("feat(pad): add padStart")
+    .click({ button: "right" });
+  // Four rebase entries sit on one stacked commit, and only the tooltips separate them: two move
+  // recorded layers, two move commits. A reader picks between them on that sentence alone, so it
+  // is pinned.
+  await expect(
+    menu.locator(".item", { hasText: "Rebase stack (all layers)" })
+  ).toHaveAttribute("title", /every recorded layer/);
+  await expect(
+    menu.locator(".item", { hasText: "Rebase this layer and above" })
+  ).toHaveAttribute("title", /from this layer up/);
+  // The panel's own rebase re-records the bases it moves, so neither entry leaves a stack
+  // recorded against replaced commits. That is the part worth stating where a reader looks.
+  for (const label of ["onto origin/main", "onto stack base"]) {
+    await expect(menu.locator(".item", { hasText: label })).toHaveAttribute(
+      "title",
+      /Re-records the bases of any gh stack layer it moves/
+    );
+  }
+});
+
 test("clicking outside dismisses the menu, and the row clicked still responds", async ({
   smartlog,
 }) => {
