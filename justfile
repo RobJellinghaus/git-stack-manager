@@ -8,7 +8,11 @@
 # Bun has no Fedora package, so a machine without Homebrew gets the upstream installer.
 # The floors are checked here because a version too old fails much later and names a git
 # flag rather than a version: `for-each-ref --include-root-refs` is what git 2.44 rejects.
-[doc("Install what building needs, and check the git and node version floors")]
+#
+# The node version comes from `.nvmrc`, which fnm, nvm, and asdf all read. It is a floor, not a
+# preference: the unit suite imports `.mts` modules as source, and an older node answers
+# `ERR_UNKNOWN_FILE_EXTENSION` for one of those unless it is passed a flag.
+[doc("Install bun and node, and check the git version floor")]
 init-repo:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -24,22 +28,34 @@ init-repo:
     fi
 
     missing=0
+    # `sort -V` puts the older first, so a floor that sorts first is one the found version clears.
     at_least() {
-        if [ "$(printf '%s\n%s\n' "$2" "$3" | sort -V | head -1)" != "$2" ]; then
-            echo "$1 $3 is below the required $2"
-            missing=1
-        fi
+        [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$1" ]
     }
-    if command -v git >/dev/null 2>&1; then
-        at_least git 2.45 "$(git --version | cut -d' ' -f3)"
-    else
+
+    git_version="$(git --version 2>/dev/null | cut -d' ' -f3)"
+    if [ -z "$git_version" ]; then
         echo "git is absent, and 2.45 or newer is required"
         missing=1
+    elif ! at_least 2.45 "$git_version"; then
+        echo "git $git_version is below the required 2.45"
+        missing=1
     fi
-    if command -v node >/dev/null 2>&1; then
-        at_least node 22 "$(node --version | tr -d v)"
+
+    # The floor is above what Fedora and Debian ship.
+    # fnm exports node per shell, so the shell that ran this keeps the version it started with.
+    node_floor="$(cat .nvmrc)"
+    node_version="$(node --version 2>/dev/null | tr -d v)"
+    if [ -n "$node_version" ] && at_least "$node_floor" "$node_version"; then
+        echo "node $node_version is already installed"
+    elif command -v fnm >/dev/null 2>&1; then
+        fnm install
+        echo "Re-enter this directory, or run fnm use, to put node $node_floor on PATH"
+    elif [ -z "$node_version" ]; then
+        echo "node is absent, and $node_floor or newer is required. fnm would install it"
+        missing=1
     else
-        echo "node is absent, and 22 or newer is required"
+        echo "node $node_version is below the required $node_floor. fnm would install it"
         missing=1
     fi
     if ! command -v gh >/dev/null 2>&1; then

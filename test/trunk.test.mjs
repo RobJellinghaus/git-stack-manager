@@ -151,7 +151,10 @@ test("a feature branch that also tracks trunk does not become the trunk row's br
   const { repo, repository } = trunkRepository(t, "gsm-trunk-shared-upstream-");
   // Taking the first tracker made Goto on the `origin/main` row check out
   // `dev/feature`, which sorts ahead of `main`.
-  run(repo, "git", ["switch", "-qc", "dev/feature", "origin/main"]);
+  //
+  // `--track` rather than git's default: `branch.autoSetupMerge=simple`, which the
+  // `tracksTrunk` comment in `renderModel.ts` recommends, attaches no upstream at all.
+  run(repo, "git", ["switch", "-qc", "dev/feature", "--track", "origin/main"]);
   assert.equal(
     run(repo, "git", ["rev-parse", "--abbrev-ref", "dev/feature@{upstream}"]),
     "origin/main"
@@ -170,7 +173,7 @@ test("several trackers and no branch named for trunk offer nothing rather than a
   // distinguishes them. Offering either would send Goto somewhere the row never named.
   run(repo, "git", ["branch", "-m", "main", "trunk"]);
   run(repo, "git", ["branch", "--set-upstream-to=origin/main", "trunk"]);
-  run(repo, "git", ["switch", "-qc", "dev/feature", "origin/main"]);
+  run(repo, "git", ["switch", "-qc", "dev/feature", "--track", "origin/main"]);
 
   const snapshot = await repository.read();
 

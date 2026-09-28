@@ -8,7 +8,7 @@ Issues and pull requests are welcome. There is no contributor agreement to sign.
 `just --list` for the full set, each with a one-line description.
 
 ```bash
-just init-repo   # install Bun, and check the git and node floors
+just init-repo   # install Bun and Node, and check the git floor
 just init-e2e    # install the one Chromium build the end-to-end suite drives
 just build       # install dependencies, compile
 ```

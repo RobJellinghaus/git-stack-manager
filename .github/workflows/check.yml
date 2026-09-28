@@ -24,12 +24,17 @@ jobs:
       # Chromium's libraries.
       - name: Install system packages
         run: >
-          dnf -y -q install git nodejs just unzip which
+          dnf -y -q install git just unzip which
           google-noto-sans-vf-fonts google-noto-sans-mono-vf-fonts adwaita-sans-fonts adwaita-mono-fonts
           nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage
           libXrandr mesa-libgbm pango alsa-lib libXfixes
 
       - uses: actions/checkout@v5
+
+      # From `.nvmrc`, so CI runs the suite on the version contributors install.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
 
       - uses: oven-sh/setup-bun@v2
         with:

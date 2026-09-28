@@ -3,6 +3,20 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] - 2026-09-28
+
+### Changed
+
+- The Node floor is 24, and `.nvmrc` is the only place it lives: `just init-repo` and CI both read
+  it. The unit suite imports the webview's `.mts` modules as source, so Node has to strip types
+  without a flag, and 24 is the oldest line where every release does.
+- `just init-repo` installs Node through fnm rather than only reporting a version as too old.
+
+### Fixed
+
+- Two trunk tests no longer depend on the contributor's `branch.autoSetupMerge`. Under the `simple`
+  this repository recommends, git attached no upstream and both failed on a clean clone.
+
 ## [0.14.0] - 2026-09-28
 
 ### Added

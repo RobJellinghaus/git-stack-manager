@@ -224,8 +224,10 @@ stored height cuts it back rather than pushing the buttons below the box off scr
   carries a whole stack, and `for-each-ref --include-root-refs`, which lets the batched read see
   HEAD. Older git rejects the second outright, leaving a graph with no branch pills, no sync badges,
   and no detected trunk, so the read reports the version instead of drawing that.
-- **Node 22+**, for subpath imports, the ES2022 output, and `node:test`. Only the web server uses
-  your Node; the extension runs on the one VS Code bundles.
+- **Node 24+**, for subpath imports, the ES2022 output, `node:test`, and stripping types without a
+  flag: the unit suite imports the webview's `.mts` modules as source, and 24 is the oldest line
+  where every release handles that. `.nvmrc` carries the version and `just init-repo` installs it.
+  Only the web server and the suites use your Node; the extension runs on the one VS Code bundles.
 - **VS Code 1.106+**, for the extension host API. Web mode does not need it.
 - **`gh`**, any version, optional. It supplies the pull request badges and the `gh stack` actions.
 

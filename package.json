@@ -2,7 +2,7 @@
   "name": "git-stack-manager",
   "displayName": "Git Stack Manager",
   "description": "Sapling ISL-style smartlog for plain Git: compact tree of your local branches/stacks, amend, checkout, restack.",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "publisher": "krvukic",
   "author": "Kresimir Vukic",
   "private": true,
@@ -33,7 +33,7 @@
   "homepage": "https://github.com/krvukic/git-stack-manager#readme",
   "engines": {
     "vscode": "^1.106.0",
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "categories": [
     "SCM Providers"
