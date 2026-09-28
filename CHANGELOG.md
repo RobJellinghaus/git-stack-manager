@@ -3,6 +3,19 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-09-28
+
+### Added
+
+- A commit menu entry checks out a stack's top layer, the branch Push, Submit, and Sync need.
+
+### Changed
+
+- Push, Submit, and Sync dim while HEAD sits outside the stack, and give the reason under the
+  cursor. All three find their stack through the checked-out branch, so from trunk they took the
+  click and handed back `branch "main" belongs to multiple stacks; checkout a non-trunk branch
+  first`.
+
 ## [0.14.4] - 2026-09-28
 
 ### Fixed

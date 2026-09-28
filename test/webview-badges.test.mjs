@@ -318,7 +318,11 @@ test("a branch outside a stack gets no stack badges", () => {
 
 test("a stacked branch reports its layer", () => {
   const position = present(
-    stackBadges({ position: 2, size: 3, needsRebase: false })[0],
+    stackBadges({
+      position: 2,
+      branches: ["lower", "middle", "upper"],
+      needsRebase: false,
+    })[0],
     "the stack position badge"
   );
   assert.equal(position.variant, "stackpos");
@@ -327,7 +331,11 @@ test("a stacked branch reports its layer", () => {
 });
 
 test("a lagging layer adds a needs-rebase badge after its position", () => {
-  const badges = stackBadges({ position: 2, size: 3, needsRebase: true });
+  const badges = stackBadges({
+    position: 2,
+    branches: ["lower", "middle", "upper"],
+    needsRebase: true,
+  });
   assert.deepEqual(
     badges.map(badge => badge.variant),
     ["stackpos", "needsrebase"]

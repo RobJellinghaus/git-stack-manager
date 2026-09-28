@@ -10,7 +10,7 @@
  * applying a split, and the two commits it leaves behind, is in `operations.spec.mjs`.
  */
 import { expect, test } from "./fixtures/demoRepo.mjs";
-import { selectCommit } from "./fixtures/interactions.mjs";
+import { expectToast, selectCommit } from "./fixtures/interactions.mjs";
 
 test("right-clicking a stacked commit lists its rebase destinations", async ({
   smartlog,
@@ -24,6 +24,37 @@ test("right-clicking a stacked commit lists its rebase destinations", async ({
   // most of what makes the picture checkable — masking it would leave a list of
   // labels with nothing to tie them to.
   await snapshot("commit-context-menu", { locator: smartlog.locator("#menu") });
+});
+
+test("the stack commands that read HEAD wait for a checkout, and offer it", async ({
+  smartlog,
+}) => {
+  const menu = smartlog.locator("#menu");
+  await smartlog
+    .getByText("feat(pad): add padStart")
+    .click({ button: "right" });
+  // HEAD is on `main`, which both demo stacks name as trunk. `gh stack submit` would refuse with
+  // `branch "main" belongs to multiple stacks` after the click, so the entry states that before
+  // the click, and the checkout above turns the fix into one gesture.
+  await expect(menu).toContainText("Push stack — check out a layer first");
+  await expect(menu).toContainText(
+    "Submit stack (create/update PRs) — check out a layer first"
+  );
+  await expect(menu).toContainText(
+    "Sync stack with remote (prune merged) — check out a layer first"
+  );
+
+  await menu.getByText("Checkout trim-utils (top layer)").click();
+  await expectToast(smartlog, "Checked out trim-utils ✓");
+
+  await smartlog
+    .getByText("feat(pad): add padStart")
+    .click({ button: "right" });
+  // The same three, now runnable, so the checkout is what the three needed, and the dimming
+  // clears rather than sticking.
+  await expect(menu).toContainText("Push stack");
+  await expect(menu).not.toContainText("check out a layer first");
+  await expect(menu).not.toContainText("Checkout trim-utils");
 });
 
 test("clicking outside dismisses the menu, and the row clicked still responds", async ({

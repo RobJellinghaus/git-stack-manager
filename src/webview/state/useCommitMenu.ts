@@ -17,6 +17,7 @@ import {
 
 export type CommitMenuActions = {
   onGoto: (commit: UICommit) => void;
+  onCheckoutBranch: (branch: string) => void;
   onGhStack: (payload: Record<string, unknown>, label: string) => void;
   onOpenTerminal: (command: string) => void;
   onSubmit: (commit: UICommit) => void;
@@ -25,6 +26,71 @@ export type CommitMenuActions = {
   onFold: (commit: UICommit) => void;
   onRebase: (commit: UICommit, destination: "trunk" | "base") => void;
 };
+
+/**
+ * The three `gh stack` commands that read the stack from HEAD, plus the checkout that lets them.
+ *
+ * `submit`, `push`, and `sync` take no branch argument, so each one finds its stack through the
+ * checked-out branch. Offered from trunk they refuse after the click with `branch "main" belongs to
+ * multiple stacks; checkout a non-trunk branch first` — a refusal from a CLI the reader never
+ * invoked. Omitting `run` states that before the click instead, as the conflict case does for
+ * rebase.
+ */
+function fromHeadItems(
+  model: RenderModel,
+  layers: string[],
+  actions: CommitMenuActions
+): MenuItem[] {
+  const headInStack = !!model.headBranch && layers.includes(model.headBranch);
+  const topLayer = layers[layers.length - 1];
+  const reason = `\`gh stack\` reads the stack from the checked-out branch, and HEAD is ${
+    model.headBranch ? `on ${model.headBranch}` : "detached"
+  }.`;
+  const entry = (
+    label: string,
+    description: string,
+    payload: Record<string, unknown>,
+    toast: string
+  ): MenuItem =>
+    headInStack
+      ? { label, description, run: () => actions.onGhStack(payload, toast) }
+      : {
+          label: `${label} — check out a layer first`,
+          description: `${description}. ${reason}`,
+        };
+
+  return [
+    // Any layer inside the stack lets all three run, since each reads the whole stack from its
+    // record. The top is offered because a later `--upstack` from there covers every layer too.
+    ...(headInStack || !topLayer
+      ? []
+      : [
+          {
+            label: `Checkout ${topLayer} (top layer)`,
+            description: "What the three entries below need, in one click",
+            run: () => actions.onCheckoutBranch(topLayer),
+          },
+        ]),
+    entry(
+      "Push stack",
+      "gh stack push — force-with-lease every branch in the stack",
+      { command: "push" },
+      "Pushing stack"
+    ),
+    entry(
+      "Submit stack (create/update PRs)",
+      "gh stack submit",
+      { command: "submit" },
+      "Submitting stack"
+    ),
+    entry(
+      "Sync stack with remote (prune merged)",
+      "gh stack sync --prune",
+      { command: "sync", prune: true },
+      "Syncing stack"
+    ),
+  ];
+}
 
 export function commitMenuItems(
   model: RenderModel,
@@ -80,23 +146,7 @@ export function commitMenuItems(
             "Rebasing upstack"
           ),
       },
-      {
-        label: "Push stack",
-        description:
-          "gh stack push — force-with-lease every branch in the stack",
-        run: () => actions.onGhStack({ command: "push" }, "Pushing stack"),
-      },
-      {
-        label: "Submit stack (create/update PRs)",
-        description: "gh stack submit",
-        run: () => actions.onGhStack({ command: "submit" }, "Submitting stack"),
-      },
-      {
-        label: "Sync stack with remote (prune merged)",
-        description: "gh stack sync --prune",
-        run: () =>
-          actions.onGhStack({ command: "sync", prune: true }, "Syncing stack"),
-      },
+      ...fromHeadItems(model, stacked.stack?.branches ?? [], actions),
       {
         // Drop, insert, rename, and reorder all live in gh stack's own TUI, so point at it
         // rather than building a second one.

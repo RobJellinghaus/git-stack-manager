@@ -347,6 +347,8 @@ export function App({ settings }: { settings: HostSettings }) {
                   y: event.clientY,
                   items: commitMenuItems(model, commit, {
                     onGoto: c => void commitActions.gotoCommit(c),
+                    onCheckoutBranch: branch =>
+                      void repository.gotoBranch(branch),
                     onGhStack: (payload, label) =>
                       void commitActions.runGhStack(payload, label),
                     onOpenTerminal: command =>

@@ -54,7 +54,14 @@ export type GhStackInfo = {
 export type StackMembership = {
   /** 1-based position from the bottom of the stack. */
   position: number;
-  size: number;
+  /**
+   * Every branch in the stack, bottom-to-top, including this one.
+   *
+   * `commitMenuItems` reads the list rather than a count, because `submit`, `push`, and `sync`
+   * find their stack through the checked-out branch: it tests HEAD against these names, and
+   * offers a checkout of the top one. The layer count comes off `length`.
+   */
+  branches: string[];
   /** The branch does not contain the tip of the layer below — needs a rebase. */
   needsRebase: boolean;
   /**
@@ -175,6 +182,8 @@ export function indexStackMembership(
 ): Map<string, StackMembership> {
   const membership = new Map<string, StackMembership>();
   for (const stack of stacks) {
+    // One array per stack, shared by its members rather than copied per layer.
+    const branches = stack.branches.map(entry => entry.branch);
     stack.branches.forEach((entry, index) => {
       const below =
         index === 0
@@ -193,7 +202,7 @@ export function indexStackMembership(
       );
       membership.set(entry.branch, {
         position: index + 1,
-        size: stack.branches.length,
+        branches,
         needsRebase:
           holdsLayerBelow === null ? recordedBaseStale : !holdsLayerBelow,
         recordedBaseStale,

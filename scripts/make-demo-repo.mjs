@@ -103,9 +103,9 @@ function verifyStackBadges(repository, expected) {
     shaOfBranch
   );
   const actual = Object.fromEntries(
-    [...membership].map(([name, { position, size, needsRebase }]) => [
+    [...membership].map(([name, { position, branches, needsRebase }]) => [
       name,
-      `${position}/${size}${needsRebase ? " needs rebase" : ""}`,
+      `${position}/${branches.length}${needsRebase ? " needs rebase" : ""}`,
     ])
   );
   const problems = [

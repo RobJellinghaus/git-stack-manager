@@ -228,17 +228,18 @@ export type StackBadge = {
 
 /**
  * `gh stack` placement: which layer this branch is, and whether GitHub would say it
- * needs a rebase (its recorded base no longer matches the layer below).
+ * needs a rebase (it does not contain the tip of the layer below).
  */
 export function stackBadges(stack: UIBranch["stack"]): StackBadge[] {
   if (!stack) {
     return [];
   }
+  const size = stack.branches.length;
   const badges: StackBadge[] = [
     {
       variant: "stackpos",
-      label: `${stack.position}/${stack.size}`,
-      description: `Layer ${stack.position} of ${stack.size} in this gh stack.`,
+      label: `${stack.position}/${size}`,
+      description: `Layer ${stack.position} of ${size} in this gh stack.`,
     },
   ];
   if (stack.needsRebase) {

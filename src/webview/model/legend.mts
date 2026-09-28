@@ -234,7 +234,7 @@ export function legendGroups(): LegendGroup[] {
         {
           branch: branch(null, null, {
             position: 2,
-            size: 3,
+            branches: ["lower", "middle", "upper"],
             needsRebase: false,
           }),
           what: "Layer 2 of 3",
@@ -243,7 +243,7 @@ export function legendGroups(): LegendGroup[] {
         {
           branch: branch(null, null, {
             position: 2,
-            size: 3,
+            branches: ["lower", "middle", "upper"],
             needsRebase: true,
           }),
           what: "Needs rebase",

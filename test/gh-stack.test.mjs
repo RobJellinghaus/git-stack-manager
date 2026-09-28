@@ -130,13 +130,13 @@ test("membership reports each branch's layer and flags a drifted base", () => {
   );
   assert.deepEqual(membership.get("lower"), {
     position: 1,
-    size: 2,
+    branches: ["lower", "upper"],
     needsRebase: false,
     recordedBaseStale: false,
   });
   assert.deepEqual(membership.get("upper"), {
     position: 2,
-    size: 2,
+    branches: ["lower", "upper"],
     needsRebase: true,
     recordedBaseStale: true,
   });

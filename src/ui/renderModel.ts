@@ -22,7 +22,11 @@ export type UIBranch = {
   sync: BranchSync | null;
   pullRequest: PullRequestStatus | null;
   /** Position in a `gh stack`, when the branch belongs to one. */
-  stack: { position: number; size: number; needsRebase: boolean } | null;
+  stack: {
+    position: number;
+    branches: string[];
+    needsRebase: boolean;
+  } | null;
   /**
    * The upstream is trunk itself rather than a pushed copy of this branch, so the sync
    * counts measure it against trunk. Excludes the branch trunk resolves to, whose counts

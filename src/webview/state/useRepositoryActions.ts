@@ -156,7 +156,10 @@ export function useRepositoryActions(smartlog: Smartlog) {
     [runAction, showToast]
   );
 
-  /** Goto on the row a fetch left the trunk branch on: a plain checkout, no fast-forward. */
+  /**
+   * Check a branch out, with no fast-forward: Goto on the row a fetch left the trunk branch on,
+   * and the commit menu's checkout of a stack's top layer.
+   */
   const gotoBranch = useCallback(
     (branch: string) =>
       runAction<RenderModel>(
