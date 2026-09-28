@@ -551,11 +551,39 @@ export class Repository {
   }
 
   /**
+   * Check out the layer a scoped rebase starts from.
+   *
+   * `gh stack rebase --upstack lower` takes its starting layer from the *checked-out* branch; the
+   * branch on the command line only selects the stack. Run with HEAD on the top layer, it printed
+   * `starting from upper to upper`, counted every upstack branch as rebased, and left the middle
+   * layer on the commit the bottom one had abandoned — a wrong result with no error. Checking the
+   * layer out first makes the menu label and the outcome agree.
+   *
+   * HEAD stays on that layer afterwards, as it does after any `gh stack rebase`.
+   */
+  private async checkoutRebasePivot(command: GhStackCommand): Promise<void> {
+    if (
+      command.kind !== "rebase" ||
+      command.scope === "all" ||
+      !command.branch
+    ) {
+      return;
+    }
+    const snapshot = await this.read();
+    if (snapshot.headBranch === command.branch) {
+      return;
+    }
+    requireCleanWorkingCopy(snapshot, `gh stack rebase --${command.scope}`);
+    await this.git.run(["switch", command.branch]);
+  }
+
+  /**
    * Delegate to the `gh stack` extension. It owns the server-side stack object
    * and force-pushes with --force-with-lease, so reimplementing submit/sync here
    * would only drift from GitHub's own view of the stack.
    */
-  runGhStack(command: GhStackCommand): Promise<string> {
+  async runGhStack(command: GhStackCommand): Promise<string> {
+    await this.checkoutRebasePivot(command);
     return runGh(this.git, ghStackArguments(command));
   }
 

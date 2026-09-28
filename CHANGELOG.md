@@ -10,6 +10,9 @@ numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 - The two `gh stack` rebase entries name the layer they were clicked on. Both read the checked-out
   branch before, so from trunk in a repository with two stacks they refused with `branch "main"
   belongs to multiple stacks`.
+- "Rebase this layer and above" checks that layer out before running, so it starts where the label
+  says. `gh stack rebase --upstack` takes its starting layer from HEAD, and from the top of the
+  stack it rebased nothing, reported success, and left the middle layer on an abandoned commit.
 
 ## [0.14.1] - 2026-09-28
 

@@ -72,7 +72,8 @@ export function commitMenuItems(
       },
       {
         label: "Rebase this layer and above",
-        description: "gh stack rebase --upstack",
+        description:
+          "gh stack rebase --upstack — checks this layer out first, because gh stack starts from HEAD",
         run: () =>
           actions.onGhStack(
             { command: "rebase", scope: "upstack", branch: stacked.name },
