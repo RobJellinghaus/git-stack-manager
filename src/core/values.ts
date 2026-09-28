@@ -35,6 +35,16 @@ export function errorMessage(error: unknown): string {
   return String(error);
 }
 
+/**
+ * Abbreviate a sha for display. Eight characters stay unambiguous in practice.
+ *
+ * `#ui` prints one on every row, and `#history` puts one in the sentence that explains why a
+ * merged branch stays, so the length is settled here rather than once per layer.
+ */
+export function shortSha(sha: string): string {
+  return sha.slice(0, 8);
+}
+
 /** Deduplicate and sort, so a report of what moved reads the same however it was gathered. */
 export function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort();

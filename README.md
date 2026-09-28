@@ -53,7 +53,14 @@ Run `just init-repo` once, then pick a host:
   request merges, which takes its commits out of the tree. Only a branch still at the commit that
   merged goes, so one you amended or added to afterwards stays, as does the checked-out branch.
   Undo brings a deleted branch back for good. A branch merged by a merge commit or a fast-forward
-  is already on trunk, so the tree never drew it and the setting leaves it alone.
+  is already on trunk, so the tree never drew it and the setting leaves it alone. The removal runs
+  when the panel learns a pull request merged, which is when the view opens and when **Refresh PRs**
+  runs — never on a timer of its own while the panel sits open.
+- **Clear merged** sweeps on demand, whichever way that setting stands. It re-reads pull request
+  status, deletes every branch that qualifies, and then names each branch it kept with the reason:
+  amended past the commit that merged, checked out here, held by another worktree, or a stopped
+  rebase. The button is absent until a branch in the tree carries a merged pull request, and its
+  count names only the branches that would actually go.
 - The sidebar's **description** box fits itself to the message when you double-click its
   bottom-right corner, and returns to its starting height on a second double-click. Dragging that
   corner still resizes by hand, and double-clicking anywhere else still selects a word. Whatever

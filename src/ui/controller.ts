@@ -420,8 +420,9 @@ const ACTIONS: Record<string, ActionHandler> = {
   },
 
   /**
-   * Sent by the webview while the setting is on and the model lists a merged branch. Undoable,
-   * like any edit that moves refs: the deleted branch comes back at the commit it held.
+   * Sent by the webview while the setting is on and the model lists a deletable merged branch.
+   * Undoable, like any edit that moves refs: the deleted branch comes back at the commit it
+   * held.
    */
   async deleteMergedBranches(controller, payload) {
     const branches = readStringList(payload, "branches");
@@ -429,7 +430,32 @@ const ACTIONS: Record<string, ActionHandler> = {
       "Delete merged branches",
       () => controller.repository.deleteMergedBranches(branches)
     );
-    return { ok: true, data: { deleted: value, model }, log };
+    return { ok: true, data: { ...value, model }, log };
+  },
+
+  /**
+   * The top bar's *Clear merged*: read pull request status afresh, then take every branch that
+   * qualifies and report the rest.
+   *
+   * Forces the fetch rather than reading the cache, which fills once per load and then only
+   * when *Refresh PRs* runs. A reader pressing this seconds after a merge would otherwise be
+   * told that nothing merged, which is the cache's age talking, not the repository's state.
+   *
+   * The branches are chosen here rather than sent, which is the difference from the automatic
+   * path above: an explicit sweep answers for what the repository holds now, and skips the
+   * webview's memory of what it has already asked for.
+   */
+  async clearMergedBranches(controller) {
+    const snapshot = await controller.repository.read();
+    await controller.repository.pullRequests.refresh(
+      branchTips(snapshot),
+      true
+    );
+    const { value, log, model } = await controller.edit(
+      "Clear merged branches",
+      () => controller.repository.deleteMergedBranches(null)
+    );
+    return { ok: true, data: { ...value, model }, log };
   },
 
   async undo(controller) {

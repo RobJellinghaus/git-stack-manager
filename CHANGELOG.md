@@ -3,6 +3,26 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-09-28
+
+### Added
+
+- **Clear merged** in the top bar sweeps merged branches on demand, whichever way **Auto-remove
+  merged commits** stands. It re-reads pull request status first, then names every branch it kept
+  and why: amended past the commit that merged, checked out here, held by another worktree, or a
+  stopped rebase. Previously a merged branch that stayed gave no reason, which read as a broken
+  setting.
+- The **Config** setting says when automatic removal runs: as the view opens and as **Refresh PRs**
+  finishes, never on a timer of its own.
+
+### Fixed
+
+- One branch that moved no longer keeps the rest of a sweep. `git update-ref` refuses a batch
+  whole, so a single amended branch used to save every other merged branch in the same pass.
+- A removal git refuses is tried again. The webview recorded a branch as dealt with before asking
+  the host, so a refusal — a branch held by another worktree, say — left it permanently untouched
+  until its tip moved.
+
 ## [0.13.0] - 2026-09-25
 
 ### Added

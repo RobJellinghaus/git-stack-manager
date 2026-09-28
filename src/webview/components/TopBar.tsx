@@ -13,6 +13,10 @@ import { classes } from "../classes";
 import { canUndo } from "../model/actionGuards.mjs";
 import { truncate } from "../model/commits.mjs";
 import { describeFreshness } from "../model/freshness.mjs";
+import {
+  deletableMerged,
+  describeClearMerged,
+} from "../model/mergedBranches.mjs";
 import { Button } from "./Button";
 
 /** How often the age is recomputed, so it does not freeze and read as fresh. */
@@ -53,6 +57,48 @@ function Freshness({ model }: { model: RenderModel }) {
   );
 }
 
+/**
+ * *Clear merged*, which is absent until a branch in the tree carries a merged pull request.
+ *
+ * Present for the kept ones too, not only the deletable ones: a merged badge on a branch that
+ * stays is exactly when a reader wants to know why, and the answer is this button's tooltip.
+ * The count names what would actually go, so a bar reading *Clear merged* with nothing ready
+ * never promises a deletion it will then refuse.
+ *
+ * Dead while a rebase is stopped, like Pull and Restack beside it, since the deletion would
+ * move a ref the rebase is about to. The tooltip still carries the reason, which is what a
+ * reader hovering a dead button is asking for.
+ */
+function ClearMergedButton({
+  model,
+  clearing,
+  onClearMerged,
+}: {
+  model: RenderModel;
+  clearing: boolean;
+  onClearMerged: () => void;
+}) {
+  const merged = model.mergedBranches;
+  if (!merged.length) {
+    return null;
+  }
+  const ready = deletableMerged(merged).length;
+  return (
+    <Button
+      id="btn-clear-merged"
+      disabled={Boolean(model.conflict) || clearing}
+      title={describeClearMerged(merged)}
+      onClick={onClearMerged}
+    >
+      {clearing
+        ? "Clearing…"
+        : ready
+          ? `Clear ${ready} merged`
+          : "Clear merged"}
+    </Button>
+  );
+}
+
 export type TopBarProps = {
   model: RenderModel;
   /** The extension's version. Empty when no host stamped one; see `settings.ts`. */
@@ -63,8 +109,10 @@ export type TopBarProps = {
   pullRequestsLoading: boolean;
   pulling: boolean;
   restacking: boolean;
+  clearingMerged: boolean;
   onPull: () => void;
   onRestack: () => void;
+  onClearMerged: () => void;
   onUndo: () => void;
   onRefresh: () => void;
   onRefreshPullRequests: () => void;
@@ -81,8 +129,10 @@ export function TopBar({
   pullRequestsLoading,
   pulling,
   restacking,
+  clearingMerged,
   onPull,
   onRestack,
+  onClearMerged,
   onUndo,
   onRefresh,
   onRefreshPullRequests,
@@ -143,6 +193,11 @@ export function TopBar({
       >
         {restacking ? "Restacking…" : "Restack all stacks onto trunk"}
       </Button>
+      <ClearMergedButton
+        model={model}
+        clearing={clearingMerged}
+        onClearMerged={onClearMerged}
+      />
       <Button
         id="btn-undo"
         // `canUndo` is shared with the `u` shortcut, and explains why a conflict leaves this

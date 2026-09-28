@@ -2,6 +2,7 @@
  * renderModel — turns a repository snapshot into the rows the smartlog draws.
  * Pure functions only (no git, no vscode) => easy to unit test.
  */
+import { shortSha } from "#core/values";
 import {
   BaseInfo,
   BranchSync,
@@ -10,11 +11,10 @@ import {
   RawData,
 } from "#git/snapshot";
 import {
-  BranchTip,
   PullRequestRefreshState,
   PullRequestStatus,
 } from "#github/pullRequests";
-import { mergedBranches } from "#history/pruneMerged";
+import { MergedBranch, mergedBranches } from "#history/pruneMerged";
 
 /** A branch pill: its name, how it compares to its remote, and its PR if any. */
 export type UIBranch = {
@@ -103,11 +103,11 @@ export type RenderModel = {
   /** Label of the action Undo would reverse, or null when the stack is empty. */
   undoLabel?: string | null;
   /**
-   * Branches whose pull request merged at their current tip, which the webview deletes when
-   * its setting says to. Computed here so the host's rule is the only one: the webview
-   * decides whether to ask, never which branches qualify.
+   * Every branch in the tree whose pull request merged: the ones the webview may delete, and
+   * the rest each carrying why it stays. Computed here so the host's rule is the only one: the
+   * webview decides whether to ask, never which branches qualify or how a refusal is phrased.
    */
-  mergedBranches: BranchTip[];
+  mergedBranches: MergedBranch[];
   /** True when `gh stack` tracks at least one branch here. */
   hasGhStack: boolean;
   /** Why PR badges are absent, when they are. Null when PR status works. */
@@ -123,11 +123,6 @@ export type RenderModel = {
   rows: Row[];
   error?: string;
 };
-
-/** Abbreviate a sha for display. Eight characters stay unambiguous in practice. */
-function shorten(sha: string): string {
-  return sha.slice(0, 8);
-}
 
 /**
  * How far the local trunk branch trails the trunk ref, for the trunk row to report.
@@ -191,7 +186,7 @@ export function buildModel(
     const commit = commitBySha.get(sha)!;
     return {
       sha: commit.sha,
-      shortSha: shorten(commit.sha),
+      shortSha: shortSha(commit.sha),
       subject: commit.subject,
       body: commit.body,
       branches: commit.branches,
@@ -279,7 +274,7 @@ export function buildModel(
     return {
       type: "base",
       sha: base.sha,
-      shortSha: shorten(base.sha),
+      shortSha: shortSha(base.sha),
       subject: base.subject,
       isHead,
       isForkPoint: forkPoints.has(base.sha),
@@ -311,7 +306,7 @@ export function buildModel(
     rows.push({
       type: "trunk-tip",
       sha: rawData.trunkTip.sha,
-      shortSha: shorten(rawData.trunkTip.sha),
+      shortSha: shortSha(rawData.trunkTip.sha),
       subject: rawData.trunkTip.subject,
       trunkRef: rawData.trunkRef ?? "trunk",
       trunkBranch: rawData.trunkBranch,

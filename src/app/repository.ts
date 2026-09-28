@@ -36,7 +36,7 @@ import {
   LineSelection,
   WorkingFileDiff,
 } from "#history/partialSelection";
-import { deleteMergedBranches } from "#history/pruneMerged";
+import { deleteMergedBranches, MergedDeletion } from "#history/pruneMerged";
 import {
   abortRebase,
   continueRebase,
@@ -622,12 +622,17 @@ export class Repository {
   }
 
   /**
-   * Delete the branches whose pull request merged at their current tip.
+   * Delete the branches whose pull request merged at their current tip, and answer what stayed.
    *
    * Reads a fresh snapshot rather than trusting the webview's: the tip each deletion is
-   * checked against has to be the one on disk now, not the one a poll ago.
+   * checked against has to be the one on disk now, not the one a poll ago. That same read is
+   * what makes the kept branches worth reporting — they are the repository's state now.
+   *
+   * Null takes every branch that qualifies, for a sweep the reader asked for outright.
    */
-  async deleteMergedBranches(branches: string[]): Promise<string[]> {
+  async deleteMergedBranches(
+    branches: string[] | null
+  ): Promise<MergedDeletion> {
     return deleteMergedBranches(
       this.git,
       await this.read(),
