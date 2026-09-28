@@ -3,6 +3,14 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.4] - 2026-09-28
+
+### Fixed
+
+- The "needs rebase" badge applies `gh stack`'s own test: does the layer hold the tip of the one
+  below? It compared the recorded sha before, so a rebase run outside the panel — from the
+  terminal, or with `git rebase --update-refs` — badged every layer of a stack that needed nothing.
+
 ## [0.14.3] - 2026-09-28
 
 ### Fixed

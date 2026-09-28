@@ -55,15 +55,13 @@ export type StackMembership = {
   /** 1-based position from the bottom of the stack. */
   position: number;
   size: number;
-  /** The branch's recorded base no longer matches its parent — needs a rebase. */
+  /** The branch does not contain the tip of the layer below — needs a rebase. */
   needsRebase: boolean;
   /**
    * `.git/gh-stack` records a base that is not the tip of the layer below.
    *
-   * Separate from `needsRebase` because the two answer different questions. A rebase that
-   * carried the whole stack leaves every layer sitting exactly where it should and every
-   * recorded base naming a replaced commit, so this is set where `needsRebase` is not. It is
-   * what `Repository` checks to confirm a re-record landed.
+   * Set independently of `needsRebase`; `indexStackMembership` names the case where the two
+   * disagree. `Repository` checks this one to confirm a re-record landed.
    */
   recordedBaseStale: boolean;
 };
@@ -122,16 +120,58 @@ function readStack(value: unknown): GhStackInfo | null {
 }
 
 /**
- * Map each stacked branch to its position, and flag branches whose recorded
- * base has drifted from where the branch actually sits.
+ * Whether the commit at `tip` has `target` in its history — the test `gh stack` applies to each
+ * layer against the one below. `null` when `parentsOfSha` covers too little history for an answer.
  *
- * `gh stack` records the base *sha* per branch, so comparing it to the current
- * tip of the layer below detects the "needs rebase" state that GitHub's own UI
- * shows — without asking `gh`.
+ * Walks the parents the snapshot already carries, so the verdict costs no subprocess at render
+ * time. Those parents cover local history only, because the reader's walk stops at trunk, and that
+ * bounds the answers available. A target inside local history is either found or genuinely missing.
+ * A target at or below trunk that the walk never reaches yields `null`, and the caller falls back
+ * on the recorded sha.
+ */
+function contains(
+  tip: string | undefined,
+  target: string | undefined,
+  parentsOfSha: Map<string, string[]>
+): boolean | null {
+  if (!tip || !target) {
+    return null;
+  }
+  const seen = new Set<string>();
+  const frontier = [tip];
+  while (frontier.length) {
+    const sha = frontier.pop();
+    if (!sha || seen.has(sha)) {
+      continue;
+    }
+    seen.add(sha);
+    if (sha === target) {
+      return true;
+    }
+    // A sha with no recorded parents is where local history ends. The equality check above
+    // already ran on it, which covers a layer sitting directly on the trunk tip.
+    frontier.push(...(parentsOfSha.get(sha) ?? []));
+  }
+  return parentsOfSha.has(target) ? false : null;
+}
+
+/**
+ * Map each stacked branch to its position, and flag the ones that need a rebase.
+ *
+ * `needsRebase` applies `gh stack`'s own test: does this branch contain the tip of the layer below?
+ * A rebase that carried the whole stack is where that parts company with `recordedBaseStale`. Such
+ * a rebase replaces every commit, so every recorded base names a replaced one, while each layer
+ * still sits on the one below and none of them needs a rebase. `gh stack view --json` reports
+ * `false` for all of them, and so does this function once `parentsOfSha` arrives.
+ *
+ * Called without `parentsOfSha`, the recorded sha is the only evidence left and that same stack
+ * reads as needing a rebase. `Repository.readStackState` takes that reading deliberately, to check
+ * whether a re-record landed.
  */
 export function indexStackMembership(
   stacks: GhStackInfo[],
-  shaOfBranch: Map<string, string>
+  shaOfBranch: Map<string, string>,
+  parentsOfSha: Map<string, string[]> = new Map()
 ): Map<string, StackMembership> {
   const membership = new Map<string, StackMembership>();
   for (const stack of stacks) {
@@ -146,13 +186,16 @@ export function indexStackMembership(
       const recordedBaseStale = Boolean(
         entry.base && actualBase && entry.base !== actualBase
       );
+      const holdsLayerBelow = contains(
+        shaOfBranch.get(entry.branch),
+        actualBase,
+        parentsOfSha
+      );
       membership.set(entry.branch, {
         position: index + 1,
         size: stack.branches.length,
-        // A recorded base that no longer matches the layer below means the lower
-        // branch moved (amended or rebased) and this one still points at the old
-        // commit — exactly GitHub's "needs rebase".
-        needsRebase: recordedBaseStale,
+        needsRebase:
+          holdsLayerBelow === null ? recordedBaseStale : !holdsLayerBelow,
         recordedBaseStale,
       });
     });

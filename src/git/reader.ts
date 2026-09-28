@@ -38,11 +38,7 @@ import {
 } from "#git/snapshot";
 import { parseStatus } from "#git/statusParser";
 import { requireSupportedGit } from "#git/version";
-import {
-  indexStackMembership,
-  readGhStacks,
-  StackMembership,
-} from "#github/ghStack";
+import { indexStackMembership, readGhStacks } from "#github/ghStack";
 
 /** Trunk candidates, most authoritative first, when `origin/HEAD` is not a symref. */
 const TRUNK_CANDIDATES = [
@@ -610,23 +606,18 @@ export async function readRawData(
     }
   }
 
-  // Reading `.git/gh-stack` is a file read, not a subprocess, so stack badges
-  // cost nothing per refresh.
   const shaOfBranch = new Map<string, string>();
   for (const ref of refs) {
     if (ref.refName.startsWith("refs/heads/")) {
       shaOfBranch.set(toShortRef(ref.refName), ref.sha);
     }
   }
-  const stackMembership = gitDirectory
-    ? indexStackMembership(readGhStacks(gitDirectory), shaOfBranch)
-    : new Map<string, StackMembership>();
+  const stacks = gitDirectory ? readGhStacks(gitDirectory) : [];
 
   // Everything the repository-wide reads answer, which an empty repository has as much of
   // as any other. Only the history walk below distinguishes the two.
   const common = {
     repoRoot,
-    stackMembership,
     repoName: repoRoot.split("/").filter(Boolean).pop() ?? repoRoot,
     userEmail,
     trunkRef,
@@ -640,6 +631,9 @@ export async function readRawData(
   if (!head.sha) {
     return {
       ...common,
+      // No walk to draw parents from, so `indexStackMembership` falls back to the recorded
+      // shas. A repository with no commit has no branch to badge either way.
+      stackMembership: indexStackMembership(stacks, shaOfBranch),
       trunkBranchCommit: null,
       headCommit: null,
       headSha: "",
@@ -667,6 +661,13 @@ export async function readRawData(
 
   return {
     ...common,
+    // `.git/gh-stack` is a file read and the parents are already in hand, so stack badges cost
+    // no subprocess per refresh.
+    stackMembership: indexStackMembership(
+      stacks,
+      shaOfBranch,
+      new Map(commits.map(commit => [commit.sha, commit.parents]))
+    ),
     trunkBranchCommit,
     headCommit,
     headSha: head.sha,

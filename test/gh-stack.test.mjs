@@ -39,6 +39,32 @@ function scratchRepository(t, prefix = "gsm-ghstack-") {
 }
 
 /**
+ * The parents the reader hands `indexStackMembership`: every local commit, bounded at trunk,
+ * which is what `walkLocalCommits` produces.
+ *
+ * @param {string} repo
+ * @param {string} trunk
+ */
+function localParents(repo, trunk) {
+  const log = run(repo, "git", [
+    "log",
+    "--format=%H %P",
+    "--branches",
+    "--not",
+    trunk,
+  ]);
+  return new Map(
+    log
+      .split("\n")
+      .filter(Boolean)
+      .map(line => {
+        const [sha = "", ...parents] = line.trim().split(" ");
+        return [sha, parents.filter(Boolean)];
+      })
+  );
+}
+
+/**
  * Write a `.git/gh-stack` state file with the given contents.
  *
  * @param {string} gitDirectory
@@ -114,6 +140,86 @@ test("membership reports each branch's layer and flags a drifted base", () => {
     needsRebase: true,
     recordedBaseStale: true,
   });
+});
+
+test("a rebase that carried the whole stack leaves no layer needing one", () => {
+  const stacks = [
+    {
+      trunkBranch: "main",
+      trunkHead: "trunk-old",
+      branches: [
+        { branch: "lower", base: "trunk-old" },
+        { branch: "middle", base: "lower-old" },
+        { branch: "upper", base: "middle-old" },
+      ],
+    },
+  ];
+  const shaOfBranch = new Map([
+    ["main", "trunk-new"],
+    ["lower", "lower-new"],
+    ["middle", "middle-new"],
+    ["upper", "upper-new"],
+  ]);
+  // The parents the reader's walk hands over. It stops at trunk, so `trunk-new` appears as a
+  // parent and never as a key — which is still enough to place the bottom layer.
+  const parents = new Map([
+    ["lower-new", ["trunk-new"]],
+    ["middle-new", ["lower-new"]],
+    ["upper-new", ["middle-new"]],
+  ]);
+
+  const membership = indexStackMembership(stacks, shaOfBranch, parents);
+  for (const branch of ["lower", "middle", "upper"]) {
+    assert.equal(
+      membership.get(branch)?.needsRebase,
+      false,
+      `${branch} sits on the layer below, which is all a rebase owes it`
+    );
+    assert.equal(membership.get(branch)?.recordedBaseStale, true);
+  }
+  // Told nothing of the parents, the recorded shas are the only evidence, and every one of them
+  // names a replaced commit. `Repository.readStackState` relies on that reading after a re-record.
+  assert.equal(
+    indexStackMembership(stacks, shaOfBranch).get("middle")?.needsRebase,
+    true
+  );
+});
+
+test("a layer left behind by an amend needs a rebase", () => {
+  const stacks = [
+    {
+      trunkBranch: "main",
+      trunkHead: "trunk",
+      branches: [
+        { branch: "lower", base: "trunk" },
+        { branch: "middle", base: "lower-old" },
+        { branch: "upper", base: "middle" },
+      ],
+    },
+  ];
+  const shaOfBranch = new Map([
+    ["main", "trunk"],
+    ["lower", "lower-new"],
+    ["middle", "middle-sha"],
+    ["upper", "upper-sha"],
+  ]);
+  // `middle` still hangs off the pre-amend `lower`, which the walk still reaches, so `contains`
+  // settles this one rather than the recorded sha.
+  const parents = new Map([
+    ["lower-new", ["trunk"]],
+    ["lower-old", ["trunk"]],
+    ["middle-sha", ["lower-old"]],
+    ["upper-sha", ["middle-sha"]],
+  ]);
+
+  const membership = indexStackMembership(stacks, shaOfBranch, parents);
+  assert.deepEqual(
+    ["lower", "middle", "upper"].map(
+      branch => membership.get(branch)?.needsRebase
+    ),
+    [false, true, false],
+    "only the layer directly above the amended one is off its base"
+  );
 });
 
 test("only the stacks a rebase moved are selected for re-recording", () => {
@@ -238,7 +344,8 @@ test(
     );
     const derived = indexStackMembership(
       readGhStacks(join(repo, ".git")),
-      branchShas(repo)
+      branchShas(repo),
+      localParents(repo, "main")
     );
 
     for (const branch of reported.branches) {
@@ -248,5 +355,73 @@ test(
         `needsRebase for ${branch.name} must match gh stack's own verdict`
       );
     }
+  }
+);
+
+test(
+  "the verdict still agrees once a rebase has moved every layer",
+  { skip: ghStackAvailable() ? false : "gh stack extension not installed" },
+  t => {
+    const layers = ["lower", "middle", "upper"];
+    const { repo } = scratchRepository(t, "gsm-ghstack-rebased-");
+    run(repo, "git", [
+      "remote",
+      "set-url",
+      "origin",
+      "https://github.com/example/example.git",
+    ]);
+    for (const branch of layers) {
+      run(repo, "git", ["switch", "-qc", branch]);
+      commitFile(repo, `${branch}.txt`, `${branch}\n`, `${branch} work`);
+    }
+    execFileSync("gh", ["stack", "init", ...layers], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+
+    // Trunk moves, then one `git rebase --update-refs` carries all three layers onto it. No
+    // `gh` runs, so the record still names every commit the rebase replaced — what a rebase
+    // driven from the terminal leaves, and what the panel left before it re-recorded.
+    run(repo, "git", ["switch", "-q", "main"]);
+    commitFile(repo, "other.txt", "other\n", "upstream work");
+    run(repo, "git", ["switch", "-q", "upper"]);
+    run(repo, "git", ["rebase", "--update-refs", "main"]);
+
+    const stacks = readGhStacks(join(repo, ".git"));
+    const shaOfBranch = branchShas(repo);
+    assert.deepEqual(
+      layers.map(
+        branch =>
+          indexStackMembership(stacks, shaOfBranch).get(branch)
+            ?.recordedBaseStale
+      ),
+      [true, true, true],
+      "the rebase left every recorded base naming a commit that is gone"
+    );
+
+    const derived = indexStackMembership(
+      stacks,
+      shaOfBranch,
+      localParents(repo, "main")
+    );
+    const reported = JSON.parse(
+      execFileSync("gh", ["stack", "view", "--json"], {
+        cwd: repo,
+        encoding: "utf8",
+      })
+    );
+    for (const branch of reported.branches) {
+      assert.equal(
+        derived.get(branch.name)?.needsRebase,
+        branch.needsRebase,
+        `needsRebase for ${branch.name} must match gh stack's own verdict`
+      );
+    }
+    // Pinned as well as compared, so a derivation that went wrong in the same direction as
+    // `gh stack` cannot pass the loop above.
+    assert.deepEqual(
+      layers.map(branch => derived.get(branch)?.needsRebase),
+      [false, false, false]
+    );
   }
 );
