@@ -3,6 +3,13 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] - 2026-09-28
+
+### Changed
+
+- Five snapshot baselines re-record. No behaviour changes: each picture shows both the **Clear
+  merged** button from 0.14.0 and the stack badges the rebase fixes above corrected.
+
 ## [0.15.1] - 2026-09-28
 
 ### Changed
