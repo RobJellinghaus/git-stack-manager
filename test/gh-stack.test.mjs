@@ -144,6 +144,26 @@ test("command arguments match the documented gh stack flags", () => {
     "rebase",
     "--upstack",
   ]);
+  assert.deepEqual(ghStackArguments({ kind: "rebase", scope: "downstack" }), [
+    "stack",
+    "rebase",
+    "--downstack",
+  ]);
+});
+
+test("a rebase names the clicked layer, so the stack is chosen without a checkout", () => {
+  assert.deepEqual(
+    ghStackArguments({ kind: "rebase", scope: "all", branch: "lower" }),
+    ["stack", "rebase", "lower"]
+  );
+  assert.deepEqual(
+    ghStackArguments({ kind: "rebase", scope: "upstack", branch: "middle" }),
+    ["stack", "rebase", "middle", "--upstack"]
+  );
+  assert.deepEqual(
+    ghStackArguments({ kind: "rebase", scope: "downstack", branch: "upper" }),
+    ["stack", "rebase", "upper", "--downstack"]
+  );
 });
 
 test(

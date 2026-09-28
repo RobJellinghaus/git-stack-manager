@@ -66,7 +66,7 @@ export function commitMenuItems(
         description: "gh stack rebase — realign every layer bottom-to-top",
         run: () =>
           actions.onGhStack(
-            { command: "rebase", scope: "all" },
+            { command: "rebase", scope: "all", branch: stacked.name },
             "Rebasing stack"
           ),
       },
@@ -75,7 +75,7 @@ export function commitMenuItems(
         description: "gh stack rebase --upstack",
         run: () =>
           actions.onGhStack(
-            { command: "rebase", scope: "upstack" },
+            { command: "rebase", scope: "upstack", branch: stacked.name },
             "Rebasing upstack"
           ),
       },

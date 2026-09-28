@@ -149,12 +149,26 @@ export function indexStackMembership(
   return membership;
 }
 
-/** Commands this extension delegates to `gh stack`, with what each one means. */
+/**
+ * Commands this extension delegates to `gh stack`, with what each one means.
+ *
+ * Only `rebase` takes a branch, because it is the only one of the four that accepts one. The other
+ * three find their stack through the checked-out branch.
+ */
 export type GhStackCommand =
   | { kind: "submit" }
   | { kind: "sync"; prune: boolean }
   | { kind: "push" }
-  | { kind: "rebase"; scope: "all" | "downstack" | "upstack" };
+  | {
+      kind: "rebase";
+      scope: "all" | "downstack" | "upstack";
+      /**
+       * The layer clicked on, which selects the stack to rebase. Spelled out as `| undefined`
+       * because `parseGhStackCommand` fills it from `optionalString`, and
+       * `exactOptionalPropertyTypes` rejects that against a plain optional.
+       */
+      branch?: string | undefined;
+    };
 
 /** The `gh` invocation for a command, run through `#github/ghRunner` like any other. */
 export function ghStackArguments(command: GhStackCommand): string[] {
@@ -169,13 +183,15 @@ export function ghStackArguments(command: GhStackCommand): string[] {
       // gh stack push uses --force-with-lease, so an amended stack updates
       // safely instead of needing a manual force push.
       return ["stack", "push"];
-    case "rebase":
-      if (command.scope === "downstack") {
-        return ["stack", "rebase", "--downstack"];
-      }
-      if (command.scope === "upstack") {
-        return ["stack", "rebase", "--upstack"];
-      }
-      return ["stack", "rebase"];
+    case "rebase": {
+      // Naming the branch picks the stack, so a rebase runs while HEAD sits on trunk. Without it
+      // `gh stack rebase` reads HEAD, which names no single stack when two are rooted at `main`.
+      const invocation = command.branch
+        ? ["stack", "rebase", command.branch]
+        : ["stack", "rebase"];
+      return command.scope === "all"
+        ? invocation
+        : [...invocation, `--${command.scope}`];
+    }
   }
 }

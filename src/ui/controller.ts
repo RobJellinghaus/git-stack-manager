@@ -10,7 +10,7 @@
 import { Repository } from "#app/repository";
 import { errorMessage } from "#core/values";
 import { RawData } from "#git/snapshot";
-import { GhStackCommand } from "#github/ghStack";
+import { ghStackArguments, GhStackCommand } from "#github/ghStack";
 import { BranchTip } from "#github/pullRequests";
 import { RebaseDestination } from "#history/rebase";
 import {
@@ -565,6 +565,7 @@ function parseGhStackCommand(payload: ActionPayload): GhStackCommand {
       return {
         kind: "rebase",
         scope: scope === "downstack" || scope === "upstack" ? scope : "all",
+        branch: optionalString(payload, "branch"),
       };
     }
     default:
@@ -572,14 +573,12 @@ function parseGhStackCommand(payload: ActionPayload): GhStackCommand {
   }
 }
 
+/**
+ * The command log line for a `gh stack` run, built from the arguments actually passed. The line
+ * therefore cannot drift from what ran, and it names the branch a rebase was given.
+ */
 function ghStackTitle(command: GhStackCommand): string {
-  if (command.kind === "sync") {
-    return command.prune ? "gh stack sync --prune" : "gh stack sync";
-  }
-  if (command.kind === "rebase" && command.scope !== "all") {
-    return `gh stack rebase --${command.scope}`;
-  }
-  return `gh stack ${command.kind}`;
+  return `gh ${ghStackArguments(command).join(" ")}`;
 }
 
 /**

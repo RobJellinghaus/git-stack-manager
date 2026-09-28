@@ -3,6 +3,14 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2] - 2026-09-28
+
+### Fixed
+
+- The two `gh stack` rebase entries name the layer they were clicked on. Both read the checked-out
+  branch before, so from trunk in a repository with two stacks they refused with `branch "main"
+  belongs to multiple stacks`.
+
 ## [0.14.1] - 2026-09-28
 
 ### Changed
