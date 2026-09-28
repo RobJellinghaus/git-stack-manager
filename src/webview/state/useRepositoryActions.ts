@@ -16,6 +16,7 @@ import type { MergedBranch } from "#history/pruneMerged";
 import type { RenderModel } from "#ui/renderModel";
 import { useCallback } from "react";
 import { describeMergedDeletion } from "../model/mergedBranches.mjs";
+import { staleStackNote } from "../model/rebaseReport.mjs";
 import { rpc } from "../rpc";
 import { useBusy } from "./useBusy";
 import type { Smartlog } from "./useSmartlog";
@@ -60,7 +61,12 @@ export function useRepositoryActions(smartlog: Smartlog) {
   const restack = useCallback(
     () =>
       whileBusy("restack", () =>
-        runAction<{ model: RenderModel; conflict: unknown; moved: string[] }>(
+        runAction<{
+          model: RenderModel;
+          conflict: unknown;
+          moved: string[];
+          staleStacks?: string[];
+        }>(
           "restack",
           {},
           {
@@ -74,10 +80,9 @@ export function useRepositoryActions(smartlog: Smartlog) {
                 );
                 return;
               }
-              showToast(
-                `Restacked: ${data.moved.join(", ") || "nothing to do"} ✓`,
-                false
-              );
+              const note = staleStackNote(data.staleStacks);
+              const done = `Restacked: ${data.moved.join(", ") || "nothing to do"} ✓`;
+              showToast(`${done}${note}`, Boolean(note));
             },
           }
         )
@@ -200,19 +205,24 @@ export function useRepositoryActions(smartlog: Smartlog) {
   const continueRebase = useCallback(
     () =>
       whileBusy("continue", () =>
-        runAction<{ model: RenderModel; conflict: unknown }>(
+        runAction<{
+          model: RenderModel;
+          conflict: unknown;
+          staleStacks?: string[];
+        }>(
           "rebaseContinue",
           {},
           {
             modelFrom: data => data.model,
             reloadOnError: true,
-            onSuccess: data =>
-              showToast(
-                data.conflict
-                  ? "Another conflict — resolve it below."
-                  : "Rebase finished ✓",
-                Boolean(data.conflict)
-              ),
+            onSuccess: data => {
+              if (data.conflict) {
+                showToast("Another conflict — resolve it below.", true);
+                return;
+              }
+              const note = staleStackNote(data.staleStacks);
+              showToast(`Rebase finished ✓${note}`, Boolean(note));
+            },
           }
         )
       ),

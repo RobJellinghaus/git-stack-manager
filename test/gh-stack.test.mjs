@@ -16,13 +16,14 @@ import {
   ghStackArguments,
   indexStackMembership,
   readGhStacks,
+  stacksHolding,
 } from "#github/ghStack";
 import {
   commitFile,
   initRepoWithOrigin,
   run,
 } from "../scripts/git-fixture.mjs";
-import { branchShas, scratchRoot } from "./repoFixture.mjs";
+import { branchShas, ghStackAvailable, scratchRoot } from "./repoFixture.mjs";
 
 /**
  * A repository with one commit and no stack state, so `.git` is somewhere to write one.
@@ -45,16 +46,6 @@ function scratchRepository(t, prefix = "gsm-ghstack-") {
  */
 function writeState(gitDirectory, state) {
   writeFileSync(join(gitDirectory, "gh-stack"), JSON.stringify(state));
-}
-
-/** Whether the `gh stack` extension is available to compare against. */
-function ghStackAvailable() {
-  try {
-    execFileSync("gh", ["stack", "--help"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 test("an unknown schema version yields no stacks rather than a guess", t => {
@@ -115,12 +106,37 @@ test("membership reports each branch's layer and flags a drifted base", () => {
     position: 1,
     size: 2,
     needsRebase: false,
+    recordedBaseStale: false,
   });
   assert.deepEqual(membership.get("upper"), {
     position: 2,
     size: 2,
     needsRebase: true,
+    recordedBaseStale: true,
   });
+});
+
+test("only the stacks a rebase moved are selected for re-recording", () => {
+  const stacks = [
+    {
+      trunkBranch: "main",
+      trunkHead: "trunk-sha",
+      branches: [
+        { branch: "lower", base: "trunk-sha" },
+        { branch: "upper", base: "lower-sha" },
+      ],
+    },
+    {
+      trunkBranch: "main",
+      trunkHead: "trunk-sha",
+      branches: [{ branch: "solo", base: "trunk-sha" }],
+    },
+  ];
+  assert.deepEqual(stacksHolding(stacks, ["upper", "main"]), [stacks[0]]);
+  // A stack the rebase never touched is left alone even when its record is stale for some
+  // other reason: re-recording it would replay commits the reader did not ask about.
+  assert.deepEqual(stacksHolding(stacks, ["lower", "solo"]), stacks);
+  assert.deepEqual(stacksHolding(stacks, []), []);
 });
 
 test("command arguments match the documented gh stack flags", () => {
@@ -163,6 +179,21 @@ test("a rebase names the clicked layer, so the stack is chosen without a checkou
   assert.deepEqual(
     ghStackArguments({ kind: "rebase", scope: "downstack", branch: "upper" }),
     ["stack", "rebase", "upper", "--downstack"]
+  );
+});
+
+test("re-recording the bases holds the layers still with --no-trunk", () => {
+  // The form `Repository` runs after its own rebase: every layer already sits where it belongs,
+  // leaving only the bases to write. Without the flag the same command fetches trunk and replays
+  // the bottom layer onto it, undoing the placement the rebase just made.
+  assert.deepEqual(
+    ghStackArguments({
+      kind: "rebase",
+      scope: "all",
+      branch: "lower",
+      noTrunk: true,
+    }),
+    ["stack", "rebase", "lower", "--no-trunk"]
   );
 });
 

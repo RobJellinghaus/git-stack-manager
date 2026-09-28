@@ -14,7 +14,15 @@ import { readRawData } from "#git/reader";
 import { GitError, GitRunner } from "#git/runner";
 import { FileChange, RawData } from "#git/snapshot";
 import { runGh } from "#github/ghRunner";
-import { ghStackArguments, GhStackCommand } from "#github/ghStack";
+import {
+  ghStackArguments,
+  GhStackCommand,
+  GhStackInfo,
+  indexStackMembership,
+  readGhStacks,
+  StackMembership,
+  stacksHolding,
+} from "#github/ghStack";
 import { PullRequestService } from "#github/pullRequests";
 import { submitBranch, SubmitOutcome, submitStack } from "#github/submit";
 import {
@@ -482,6 +490,107 @@ export class Repository {
   }
 
   /**
+   * The `gh stack` record and the commit each local branch points at.
+   *
+   * A full read walks the history a rebase just rewrote. Re-recording the bases needs none of it,
+   * so this costs two git commands and a file read — the budget for a check that runs after every
+   * rebase.
+   */
+  private async readStackState(): Promise<{
+    stacks: GhStackInfo[];
+    membership: Map<string, StackMembership>;
+  }> {
+    const [gitDirectory, refs] = await Promise.all([
+      // The common directory, so a linked worktree sees the repository's stacks.
+      this.git.tryRun([
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir",
+      ]),
+      this.git.run([
+        "for-each-ref",
+        "--format=%(refname:short) %(objectname)",
+        "refs/heads",
+      ]),
+    ]);
+    const shaOfBranch = new Map<string, string>();
+    for (const line of refs.split("\n").filter(Boolean)) {
+      const [branch, sha] = line.split(" ");
+      if (branch && sha) {
+        shaOfBranch.set(branch, sha);
+      }
+    }
+    const stacks = gitDirectory ? readGhStacks(gitDirectory) : [];
+    return { stacks, membership: indexStackMembership(stacks, shaOfBranch) };
+  }
+
+  /**
+   * Bring the `gh stack` record of every stack this rebase moved back in line with where its
+   * branches now sit.
+   *
+   * A rebase with `--update-refs` moves each layer and leaves `.git/gh-stack` naming the commits
+   * it replaced, with nothing on screen to show it. The graph then drew "needs rebase" on the
+   * stack just rebased, and `gh stack submit` would have opened its pull requests against
+   * abandoned shas. `gh stack rebase <bottom> --no-trunk` replays each layer onto the one below —
+   * already where the rebase put them — and writes the new bases.
+   *
+   * This reports a failure rather than throwing one. The commits have already moved, so turning a
+   * finished rebase into an error would tell the reader the opposite of what happened. `gh stack`
+   * exits 0 even when it prints `✗` and rebases nothing, so the verdict comes from re-reading the
+   * record rather than from the exit status.
+   */
+  private async recordStackBases(
+    outcome: RebaseOutcome
+  ): Promise<RebaseOutcome> {
+    if (outcome.conflict || !outcome.moved.length) {
+      return outcome;
+    }
+    // A rebase never writes the record, so it still names the same stacks it did before the
+    // commits moved.
+    const stacks = stacksHolding(
+      (await this.readStackState()).stacks,
+      outcome.moved
+    );
+    if (!stacks.length) {
+      return outcome;
+    }
+    const bottoms: string[] = [];
+    for (const stack of stacks) {
+      const bottom = stack.branches[0]?.branch;
+      if (!bottom) {
+        continue;
+      }
+      bottoms.push(bottom);
+      try {
+        await runGh(
+          this.git,
+          ghStackArguments({
+            kind: "rebase",
+            scope: "all",
+            branch: bottom,
+            noTrunk: true,
+          })
+        );
+      } catch {
+        // Nothing to do here: the check below reports every stack still stale, whether `gh`
+        // failed outright or printed a cross and carried on.
+      }
+    }
+    // The bottom layer counts like any other. `gh stack` records its base as the tip of the trunk
+    // *branch* rather than the commit the layer sits on, and `indexStackMembership` compares
+    // against that same value, so a stack rebased past a trailing local `main` reads clean.
+    const after = await this.readStackState();
+    const staleStacks = stacksHolding(after.stacks, bottoms)
+      .filter(stack =>
+        stack.branches.some(
+          entry => after.membership.get(entry.branch)?.recordedBaseStale
+        )
+      )
+      .flatMap(stack => (stack.branches[0] ? [stack.branches[0].branch] : []));
+    return staleStacks.length ? { ...outcome, staleStacks } : outcome;
+  }
+
+  /**
    * Move `sha` and its descendants onto `destination`.
    *
    * Returns `conflict: true` with git's rebase state intact when a step stops,
@@ -499,7 +608,8 @@ export class Repository {
     }
     const destinationSha = resolveDestination(snapshot, sha, destination);
     const plan = planRebase(snapshot, sha, destinationSha);
-    return runRebase(this.git, snapshot, plan);
+    const outcome = await runRebase(this.git, snapshot, plan);
+    return this.recordStackBases(outcome);
   }
 
   /**
@@ -547,7 +657,10 @@ export class Repository {
         return { moved: uniqueSorted(moved), conflict: true };
       }
     }
-    return { moved: uniqueSorted(moved), conflict: false };
+    return this.recordStackBases({
+      moved: uniqueSorted(moved),
+      conflict: false,
+    });
   }
 
   /**
@@ -721,8 +834,12 @@ export class Repository {
     return this.undoHistory.undo();
   }
 
-  continueRebase(): Promise<RebaseOutcome> {
-    return continueRebase(this.git);
+  /**
+   * Finish the rebase the user resolved, then record where the stacks landed — a rebase that
+   * stopped on a conflict moves the same branches as one that did not.
+   */
+  async continueRebase(): Promise<RebaseOutcome> {
+    return this.recordStackBases(await continueRebase(this.git));
   }
 
   abortRebase(): Promise<void> {

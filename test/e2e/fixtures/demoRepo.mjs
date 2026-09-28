@@ -592,6 +592,9 @@ const CANNED_PULL_REQUESTS = [
  * against the branch names it asked for, and an exact-matching shim would let that
  * filter be deleted with every test still passing.
  *
+ * `gh stack rebase --no-trunk` is the one command the shim carries out rather than
+ * answers, because the extension reads back the file it writes. See `reRecordBases`.
+ *
  * @param {string} directory
  */
 export function writeStandInGitHub(directory) {
@@ -622,9 +625,47 @@ function answer() {
   if (args[0] === "pr" && args[1] === "list") {
     return JSON.stringify(listPullRequests());
   }
+  if (args[0] === "stack" && args[1] === "rebase" && args.includes("--no-trunk")) {
+    reRecordBases(args[2]);
+    return "All branches in stack rebased locally (without trunk)\\n";
+  }
   // Everything else — \`pr edit\` among them — reports success and says nothing,
   // which is what the callers of those commands read.
   return "[]";
+}
+
+/**
+ * What \`gh stack rebase <bottom> --no-trunk\` does to \`.git/gh-stack\`, and nothing else.
+ *
+ * The extension runs this after its own rebase to bring the record back in line, so a shim
+ * that only logged the call left every snapshot showing "needs rebase" on the stack that had
+ * just been rebased — the bug, not the fix.
+ *
+ * Faithful to \`gh stack\` v0.1.0 on a stack whose layers already sit in order: it replays each
+ * layer onto the one below, which moves no commit, and rewrites every base. Two details came
+ * from checking the real CLI. The bottom layer's base is the tip of the trunk *branch*, which
+ * \`Repository.recordStackBases\` relies on. And a rebase adds a \`head\` per branch, which
+ * \`gh stack init\` omits.
+ */
+function reRecordBases(bottom) {
+  const path = git(["rev-parse", "--path-format=absolute", "--git-path", "gh-stack"]);
+  const state = JSON.parse(fs.readFileSync(path, "utf8"));
+  for (const stack of state.stacks) {
+    if (stack.branches[0].branch !== bottom) {
+      continue;
+    }
+    stack.trunk.head = git(["rev-parse", stack.trunk.branch]);
+    stack.branches.forEach((entry, index) => {
+      const below = index === 0 ? stack.trunk.branch : stack.branches[index - 1].branch;
+      entry.head = git(["rev-parse", entry.branch]);
+      entry.base = git(["rev-parse", below]);
+    });
+  }
+  fs.writeFileSync(path, JSON.stringify(state, null, 2) + "\\n");
+}
+
+function git(argv) {
+  return execFileSync("git", argv, { encoding: "utf8" }).trim();
 }
 
 function pushedTip(branch) {

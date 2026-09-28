@@ -57,6 +57,15 @@ export type StackMembership = {
   size: number;
   /** The branch's recorded base no longer matches its parent — needs a rebase. */
   needsRebase: boolean;
+  /**
+   * `.git/gh-stack` records a base that is not the tip of the layer below.
+   *
+   * Separate from `needsRebase` because the two answer different questions. A rebase that
+   * carried the whole stack leaves every layer sitting exactly where it should and every
+   * recorded base naming a replaced commit, so this is set where `needsRebase` is not. It is
+   * what `Repository` checks to confirm a re-record landed.
+   */
+  recordedBaseStale: boolean;
 };
 
 /**
@@ -134,19 +143,39 @@ export function indexStackMembership(
       const expectedBase =
         index === 0 ? stack.trunkHead : shaOfBranch.get(below);
       const actualBase = shaOfBranch.get(below) ?? expectedBase;
+      const recordedBaseStale = Boolean(
+        entry.base && actualBase && entry.base !== actualBase
+      );
       membership.set(entry.branch, {
         position: index + 1,
         size: stack.branches.length,
         // A recorded base that no longer matches the layer below means the lower
         // branch moved (amended or rebased) and this one still points at the old
         // commit — exactly GitHub's "needs rebase".
-        needsRebase: Boolean(
-          entry.base && actualBase && entry.base !== actualBase
-        ),
+        needsRebase: recordedBaseStale,
+        recordedBaseStale,
       });
     });
   }
   return membership;
+}
+
+/**
+ * The stacks holding any of `branches` — the ones a rebase of those branches moved.
+ *
+ * The scope matters, because the repair is not safe everywhere. On a stack the rebase just
+ * carried, `gh stack rebase <bottom> --no-trunk` finds every layer already in place and rewrites
+ * bases only. On an untouched stack whose record went stale for another reason — a layer amended
+ * by hand — the same command rewrites commits the reader never asked it to touch.
+ */
+export function stacksHolding(
+  stacks: GhStackInfo[],
+  branches: string[]
+): GhStackInfo[] {
+  const moved = new Set(branches);
+  return stacks.filter(stack =>
+    stack.branches.some(entry => moved.has(entry.branch))
+  );
 }
 
 /**
@@ -168,6 +197,11 @@ export type GhStackCommand =
        * `exactOptionalPropertyTypes` rejects that against a plain optional.
        */
       branch?: string | undefined;
+      /**
+       * Replay each layer onto the one below and leave trunk out of it — `--no-trunk`.
+       * `Repository.recordStackBases` is the caller, and explains what the flag buys there.
+       */
+      noTrunk?: boolean | undefined;
     };
 
 /** The `gh` invocation for a command, run through `#github/ghRunner` like any other. */
@@ -189,9 +223,13 @@ export function ghStackArguments(command: GhStackCommand): string[] {
       const invocation = command.branch
         ? ["stack", "rebase", command.branch]
         : ["stack", "rebase"];
-      return command.scope === "all"
-        ? invocation
-        : [...invocation, `--${command.scope}`];
+      if (command.scope !== "all") {
+        invocation.push(`--${command.scope}`);
+      }
+      if (command.noTrunk) {
+        invocation.push("--no-trunk");
+      }
+      return invocation;
     }
   }
 }

@@ -3,6 +3,16 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] - 2026-09-28
+
+### Fixed
+
+- A rebase brings the `gh stack` record with it. Rebasing a stack moved every layer and left the
+  record naming the commits it replaced, so the graph drew "needs rebase" on the stack just
+  rebased, and `gh stack submit` would have opened its pull requests against abandoned commits.
+  Restack and a rebase resumed after a conflict re-record too.
+- When that repair fails, the toast names the `gh stack rebase <bottom> --no-trunk` to run by hand.
+
 ## [0.14.2] - 2026-09-28
 
 ### Fixed

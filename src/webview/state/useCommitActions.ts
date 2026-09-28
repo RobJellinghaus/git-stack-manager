@@ -11,6 +11,7 @@ import type { RenderModel, UICommit } from "#ui/renderModel";
 import { useCallback, useState } from "react";
 import type { SplitHunk, SplitState } from "../components/SplitPanel";
 import { gotoTarget, submitTarget } from "../model/commits.mjs";
+import { staleStackNote } from "../model/rebaseReport.mjs";
 import { rpc } from "../rpc";
 import { useBusy } from "./useBusy";
 import type { Smartlog } from "./useSmartlog";
@@ -61,6 +62,7 @@ export function useCommitActions(smartlog: Smartlog) {
         model: RenderModel;
         conflict: unknown;
         moved: string[];
+        staleStacks?: string[];
       }>(
         "rebase",
         { sha: commit.sha, destination },
@@ -75,12 +77,11 @@ export function useCommitActions(smartlog: Smartlog) {
               );
               return;
             }
-            showToast(
-              data.moved.length
-                ? `Rebased ${data.moved.join(", ")} ✓`
-                : "Rebased ✓",
-              false
-            );
+            const note = staleStackNote(data.staleStacks);
+            const done = data.moved.length
+              ? `Rebased ${data.moved.join(", ")} ✓`
+              : "Rebased ✓";
+            showToast(`${done}${note}`, Boolean(note));
           },
         }
       );
