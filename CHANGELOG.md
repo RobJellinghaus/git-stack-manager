@@ -3,6 +3,19 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-09-28
+
+### Added
+
+- **Move stack onto the remote**, on a stacked commit's menu. Every layer moves to the commit that
+  its remote branch holds, where GitHub's own restack leaves it once a lower pull request merges.
+  The move pushes nothing, and **Undo** puts the branches back. It refuses when a layer holds a
+  commit that the remote does not have, or carries the same changes under a different commit
+  message.
+- **Delete branch**, on any commit that carries a local branch. Three branches keep the entry and
+  name the reason instead: trunk, the branch you have checked out, and a branch that another
+  worktree holds. The toast names the reflog when no other ref reaches the commit.
+
 ## [0.15.2] - 2026-09-28
 
 ### Changed

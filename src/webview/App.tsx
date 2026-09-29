@@ -351,6 +351,10 @@ export function App({ settings }: { settings: HostSettings }) {
                       void repository.gotoBranch(branch),
                     onGhStack: (payload, label) =>
                       void commitActions.runGhStack(payload, label),
+                    onAdoptRemote: branch =>
+                      void commitActions.adoptRemote(branch),
+                    onDeleteBranch: branch =>
+                      void commitActions.deleteBranch(branch),
                     onOpenTerminal: command =>
                       void rpc("openTerminal", { command }),
                     onSubmit: c => void commitActions.submitCommit(c),

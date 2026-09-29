@@ -6,7 +6,7 @@
  * Submit, and a stopped rebase replaces the rebase entries with an explanation instead of
  * hiding them.
  */
-import type { RenderModel, UICommit } from "#ui/renderModel";
+import type { RenderModel, UIBranch, UICommit } from "#ui/renderModel";
 import type { MenuItem } from "../components/ContextMenu";
 import {
   countDescendants,
@@ -19,6 +19,8 @@ export type CommitMenuActions = {
   onGoto: (commit: UICommit) => void;
   onCheckoutBranch: (branch: string) => void;
   onGhStack: (payload: Record<string, unknown>, label: string) => void;
+  onAdoptRemote: (branch: string) => void;
+  onDeleteBranch: (branch: string) => void;
   onOpenTerminal: (command: string) => void;
   onSubmit: (commit: UICommit) => void;
   onSubmitStack: (commit: UICommit) => void;
@@ -92,6 +94,37 @@ function fromHeadItems(
   ];
 }
 
+/**
+ * One **Delete branch** entry per branch on the commit, each carrying its own refusal.
+ *
+ * Each refused branch keeps its entry, which names the reason, as the rebase and `gh stack` entries
+ * do: a branch with no entry at all reads as a bug in the menu. The host always refuses trunk, so
+ * `main` never gets a runnable entry.
+ */
+function deleteItems(commit: UICommit, actions: CommitMenuActions): MenuItem[] {
+  return (commit.branchDetails ?? []).map(branch =>
+    branch.deletionRefusal
+      ? {
+          label: `Delete branch ${branch.name} — ${branch.deletionRefusal}`,
+        }
+      : {
+          label: `Delete branch ${branch.name}`,
+          description:
+            "Remove the local branch. Its commits stay in the reflog, and Undo puts the branch back",
+          run: () => actions.onDeleteBranch(branch.name),
+        }
+  );
+}
+
+/**
+ * The remote that a layer tracks, so the label can name it instead of falling back on "the remote".
+ * Null on a layer that tracks nothing, where the entry still applies, because the layers above it
+ * may track theirs.
+ */
+function remoteOf(branch: UIBranch): string | null {
+  return branch.sync?.upstream?.split("/")[0] ?? null;
+}
+
 export function commitMenuItems(
   model: RenderModel,
   commit: UICommit,
@@ -146,6 +179,16 @@ export function commitMenuItems(
             { command: "rebase", scope: "upstack", branch: stacked.name },
             "Rebasing upstack"
           ),
+      },
+      {
+        // The opposite direction to the two rebases above. Those two replay local commits; this
+        // entry takes the commits that the remote already holds. Once GitHub restacks a stack, the
+        // remote holds the correct copy, and a local replay reaches the same trees under new
+        // shas and force-pushes every branch.
+        label: `Move stack onto ${remoteOf(stacked) ?? "the remote"}`,
+        description:
+          "Point every layer at the commit that its remote branch holds, where GitHub's restack left it once a lower pull request merged. This pushes nothing, Undo puts the branches back, and the move refuses when a layer holds work that the remote does not have",
+        run: () => actions.onAdoptRemote(stacked.name),
       },
       ...fromHeadItems(model, stacked.stack?.branches ?? [], actions),
       {
@@ -212,5 +255,12 @@ export function commitMenuItems(
       run: () => actions.onRebase(commit, "base"),
     }
   );
+
+  const deletions = deleteItems(commit, actions);
+  if (deletions.length) {
+    // Last, and behind a separator: these are the only entries here that remove a ref rather than
+    // moving one, so they sit below the entries a reader clicks most.
+    items.push({ separator: true }, ...deletions);
+  }
   return items;
 }

@@ -31,12 +31,14 @@ import {
   applyAbsorb,
   planAbsorb,
 } from "#history/absorb";
+import { AdoptOutcome, adoptRemoteStack } from "#history/adoptRemote";
 import {
   amendPathsInto,
   AmendResult,
   commitPaths,
   CommitResult,
 } from "#history/commit";
+import { BranchDeletion, deleteBranch } from "#history/deleteBranch";
 import { discardPaths, DiscardResult } from "#history/discard";
 import { foldIntoParent, FoldResult } from "#history/fold";
 import {
@@ -664,6 +666,58 @@ export class Repository {
   }
 
   /**
+   * Move every layer of the stack that holds `branch` onto the commit that its remote holds.
+   *
+   * The layers come from the `gh stack` record rather than from the graph that the tree drew. The
+   * record names the stack that GitHub restacked, and `buildModel` draws no row beside the others
+   * for a layer whose local branch was left behind two rebases ago.
+   *
+   * Re-records the bases afterwards for the same reason that a rebase does: every layer now
+   * points at the commit that its remote parent holds, so the record names a replaced base for
+   * every layer.
+   */
+  async adoptRemoteStack(branch: string): Promise<AdoptOutcome> {
+    const snapshot = await this.read();
+    const stack = stacksHolding((await this.readStackState()).stacks, [
+      branch,
+    ])[0];
+    if (!stack) {
+      throw new GitError(
+        `${branch} belongs to no gh stack, so this action finds no layers to move.`,
+        "adopt remote"
+      );
+    }
+    const branches = stack.branches.map(entry => entry.branch);
+    // Only the checked-out layer's files move, so only that layer can catch an edit mid-move. An
+    // untracked file never blocks the move, because nothing here writes a path that git does not
+    // track.
+    const dirty = snapshot.uncommitted.filter(file => file.status !== "?");
+    if (
+      dirty.length &&
+      snapshot.headBranch &&
+      branches.includes(snapshot.headBranch)
+    ) {
+      throw new GitError(
+        `Commit, amend, or stash your changes before moving the stack — ${snapshot.headBranch} is checked out, and its files move with it (${describeFiles(dirty)}).`,
+        "adopt remote"
+      );
+    }
+    const outcome = await adoptRemoteStack(
+      this.git,
+      branches,
+      snapshot.trunkRef,
+      snapshot.headBranch
+    );
+    const recorded = await this.recordStackBases({
+      moved: outcome.moved,
+      conflict: false,
+    });
+    return recorded.staleStacks
+      ? { ...outcome, staleStacks: recorded.staleStacks }
+      : outcome;
+  }
+
+  /**
    * Check out the layer a scoped rebase starts from.
    *
    * `gh stack rebase --upstack lower` takes its starting layer from the *checked-out* branch; the
@@ -780,6 +834,16 @@ export class Repository {
       this.pullRequests.cached(),
       branches
     );
+  }
+
+  /**
+   * Delete one local branch, merged or not.
+   *
+   * This reads a fresh snapshot for the same reason that the merged sweep does: the refusals depend
+   * on where HEAD and the worktrees sit now, not on where they sat one poll ago.
+   */
+  async deleteBranch(branch: string): Promise<BranchDeletion> {
+    return deleteBranch(this.git, await this.read(), branch);
   }
 
   /** Work out where the working-copy changes belong, without applying anything. */

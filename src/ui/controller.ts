@@ -390,6 +390,24 @@ const ACTIONS: Record<string, ActionHandler> = {
     return { ok: true, data: { ...value, model }, log };
   },
 
+  async deleteBranch(controller, payload) {
+    const branch = requireString(payload, "branch");
+    const { value, log, model } = await controller.edit(
+      `Delete ${branch}`,
+      () => controller.repository.deleteBranch(branch)
+    );
+    return { ok: true, data: { ...value, model }, log };
+  },
+
+  async adoptRemoteStack(controller, payload) {
+    const branch = requireString(payload, "branch");
+    const { value, log, model } = await controller.edit(
+      "Adopt stack from remote",
+      () => controller.repository.adoptRemoteStack(branch)
+    );
+    return { ok: true, data: { ...value, model }, log };
+  },
+
   /**
    * Continue and abort are not undoable: git owns the in-progress rebase state,
    * and a checkpoint taken mid-rebase would describe a half-applied stack.

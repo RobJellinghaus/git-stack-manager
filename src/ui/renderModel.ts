@@ -14,6 +14,7 @@ import {
   PullRequestRefreshState,
   PullRequestStatus,
 } from "#github/pullRequests";
+import { deletionRefusal } from "#history/deleteBranch";
 import { MergedBranch, mergedBranches } from "#history/pruneMerged";
 
 /** A branch pill: its name, how it compares to its remote, and its PR if any. */
@@ -38,6 +39,12 @@ export type UIBranch = {
    * it is free. `gotoTarget` turns this into a disabled button naming the directory.
    */
   worktree: string | null;
+  /**
+   * Why **Delete branch** refuses this branch, or null when it can go. Computed here for the same
+   * reason as `mergedBranches`: the host owns which branches may go and how each refusal reads, and
+   * the menu only offers or withholds the entry.
+   */
+  deletionRefusal: string | null;
 };
 
 export type UICommit = {
@@ -213,6 +220,7 @@ export function buildModel(
             sync.upstream === rawData.trunkRef &&
             name !== rawData.trunkBranch,
           worktree: rawData.heldBranches.get(name) ?? null,
+          deletionRefusal: deletionRefusal(rawData, name),
         };
       }),
       parents: commit.parents,

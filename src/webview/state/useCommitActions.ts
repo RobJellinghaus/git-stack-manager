@@ -10,6 +10,7 @@
 import type { RenderModel, UICommit } from "#ui/renderModel";
 import { useCallback, useState } from "react";
 import type { SplitHunk, SplitState } from "../components/SplitPanel";
+import { adoptReport, type AdoptReportInput } from "../model/adoptReport.mjs";
 import { gotoTarget, submitTarget } from "../model/commits.mjs";
 import { staleStackNote } from "../model/rebaseReport.mjs";
 import { rpc } from "../rpc";
@@ -111,6 +112,63 @@ export function useCommitActions(smartlog: Smartlog) {
       }
     },
     [loadPullRequests, runAction, showToast]
+  );
+
+  /**
+   * Point every layer of a stack at the commit that its remote holds, where GitHub's own restack
+   * left it once a lower pull request merged. The reload of pull request status follows the move,
+   * because the badges drew the divergence that the move clears.
+   */
+  const adoptRemote = useCallback(
+    async (branch: string) => {
+      showToast("Moving stack onto the remote…", false);
+      const response = await runAction<
+        AdoptReportInput & { model: RenderModel; staleStacks?: string[] }
+      >(
+        "adoptRemoteStack",
+        { branch },
+        {
+          modelFrom: data => data.model,
+          reloadOnError: true,
+          onSuccess: data => {
+            const report = adoptReport(data);
+            const note = staleStackNote(data.staleStacks);
+            showToast(`${report.text}${note}`, report.warn || Boolean(note));
+          },
+        }
+      );
+      if (response.ok) {
+        void loadPullRequests(true);
+      }
+    },
+    [loadPullRequests, runAction, showToast]
+  );
+
+  /**
+   * Remove one local branch. The toast names the reflog when no other ref reaches the commit,
+   * because the undo checkpoints go when the window closes, and the reflog is what remains.
+   */
+  const deleteBranch = useCallback(
+    (branch: string) =>
+      runAction<{
+        model: RenderModel;
+        sha: string;
+        onlyInReflog: boolean;
+      }>(
+        "deleteBranch",
+        { branch },
+        {
+          modelFrom: data => data.model,
+          onSuccess: data =>
+            showToast(
+              data.onlyInReflog
+                ? `Deleted ${branch} ✓ — ${data.sha.slice(0, 8)} is now reachable only from the reflog, so Undo is the way back`
+                : `Deleted ${branch} ✓`,
+              data.onlyInReflog
+            ),
+        }
+      ),
+    [runAction, showToast]
   );
 
   const foldCommit = useCallback(
@@ -309,6 +367,8 @@ export function useCommitActions(smartlog: Smartlog) {
     gotoCommit,
     runRebase,
     runGhStack,
+    adoptRemote,
+    deleteBranch,
     submitStack,
     foldCommit,
     submitCommit,
