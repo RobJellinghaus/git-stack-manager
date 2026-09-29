@@ -61,8 +61,8 @@
    * Both halves of the one-line rule are lifted here, and both are needed.
    *
    * `height: auto` alone does not grow the box: a flex container's cross size comes from its
-   * flex *lines*, and with `flex-wrap: nowrap` there is exactly one line however tall its
-   * items get — so a subject that broke into two lines was laid out at 26px and the second
+   * flex *lines*, and with `flex-wrap: nowrap` the container has exactly one line however tall
+   * its items get — so a subject that broke into two lines was laid out at 26px and the second
    * line clipped by the `overflow: hidden` that keeps a starved row on its own line.
    *
    * That clipping was live before this row centred its items, on 25 of 28 rows. `baseline`
@@ -122,7 +122,7 @@
     fill: none;
   }
   /* An ordinary dot is a bulge in its lane, so it takes the lane's colour rather than a
-     text colour of its own. That also settles legibility for free: `--color-rail` is the
+     text colour of its own. That also settles legibility: `--color-rail` is the
      one value already known to stand out on any editor background, and a dot painted in
      `--vscode-descriptionForeground` read dimmer than the line running through it.
      The base dot keeps the editor background inside its ring, which is what hides the

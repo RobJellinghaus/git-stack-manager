@@ -110,7 +110,7 @@ function assertNoScratchState(repo) {
 /**
  * A repository with a bare origin and one pushed trunk commit.
  *
- * The trunk commit is authored by the teammate identity by default, so it reads as
+ * The teammate identity authors the trunk commit by default, so it reads as
  * someone else's work — which is what a pushed trunk is, and what several suites
  * distinguish their own commits from.
  *

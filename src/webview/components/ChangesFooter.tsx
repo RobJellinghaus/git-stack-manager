@@ -77,7 +77,7 @@ export function ChangesFooter({
         title={
           target
             ? `Fold every ticked change into “${target.subject}”, keeping its message`
-            : "HEAD is not a local commit, so there is nothing to amend into"
+            : "HEAD is not a local commit, so Amend into has no target"
         }
         onClick={() => target && onAmend(target)}
       >

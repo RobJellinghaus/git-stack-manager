@@ -4,10 +4,10 @@
  * The behaviour under test was established against a live pull request. Amending a commit
  * message and force-pushing moved the branch — `headRefOid` changed — while the pull
  * request kept its original `title` and `body`, because GitHub reads the commit only when
- * the PR is created. So the assertion that matters here is not that a push happened, but
- * that a message-only amend still reaches the PR.
+ * the pull request is created. So the assertion that matters here is not that a push happened,
+ * but that a message-only amend still reaches the pull request.
  *
- * `gh` is replaced by a script on PATH that records its arguments and stdin, so the exact
+ * A script on PATH replaces `gh` and records its arguments and stdin, so the exact
  * command sequence is the assertion and no test touches GitHub. The pushes are real,
  * against a local bare repository, because the push flags are half of what is being tested.
  */
@@ -177,7 +177,7 @@ test("submitting a branch with no pull request opens one from the commit message
 
 test("a message-only amend still reaches the pull request", async t => {
   // The whole point of the feature. Force-pushing an amended commit updates the
-  // branch but leaves the PR's title and body stale, so submit must write them.
+  // branch but leaves the pull request's title and body stale, so submit must write them.
   const { repo, logPath, repository } = scratchRepository(t, {
     prListOutput:
       '[{"number":42,"url":"https://github.com/example/example/pull/42","baseRefName":"main"}]',
@@ -313,7 +313,7 @@ test("submitting the stack pushes and opens every layer from the bottom up", asy
 
 test("submitting a base with local work past its remote reports the inflated diff", async t => {
   // GitHub diffs against the base as pushed. Observed with a real stacked pull
-  // request: while the base branch lagged, the PR listed the parent branch's file
+  // request: while the base branch lagged, the pull request listed the parent branch's file
   // next to its own, and that file dropped out once the base was submitted.
   const { repository } = scratchRepository(t);
   await repository.submit("feature-a");

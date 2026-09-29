@@ -6,10 +6,10 @@
  * browser posts to `/api/<action>`.
  *
  * Every call resolves — none rejects. A dead server, a dropped SSH tunnel, or a stalled
- * request must not hang the UI or surface as an unhandled rejection, so a timeout caps
- * every HTTP call and any network or parse failure is normalised to the `{ok: false}`
- * shape the callers already handle. Without that, a rejected fetch left the page sitting
- * on "Loading…" with no hint.
+ * request must not hang the UI or appear as an unhandled rejection, so a timeout caps
+ * every HTTP call and `rpc` normalises any network or parse failure to the `{ok: false}`
+ * shape the callers already handle. Without that, a rejected fetch left the page on
+ * "Loading…" with no hint.
  */
 import type { UIRequest } from "#ui/actionPayload";
 import type { CommandLog } from "#ui/controller";

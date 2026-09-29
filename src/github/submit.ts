@@ -2,10 +2,10 @@
  * submit — push one branch and make its pull request match the commit message.
  *
  * Force-pushing a reworded commit updates the branch on GitHub but leaves the
- * pull request's title and body at whatever they said when the PR was opened.
+ * pull request's title and body at whatever they said when it was opened.
  * GitHub fills those two fields from the commit only at creation time and never
  * looks at the commit again, so a message amend reaches the branch and stops
- * there. Verified against a live PR: after amending the message and pushing,
+ * there. Verified against a live pull request: after amending the message and pushing,
  * `headRefOid` moved to the new sha while `title` and `body` kept their original
  * text. Submitting therefore has to write the message across explicitly; the
  * push alone is not enough.
@@ -57,7 +57,7 @@ export type StaleBase = {
   reason: "unsubmitted" | "rewritten";
 };
 
-/** The commit message, split the way a pull request wants it. */
+/** The commit message, split into the title and body a pull request takes. */
 type Message = {
   title: string;
   body: string;
@@ -221,8 +221,8 @@ async function findStaleBase(
   branch: string,
   base: string
 ): Promise<StaleBase | null> {
-  // Trunk is maintained by everyone; being behind it is a rebase question, not a
-  // submit one, and the rebase and restack actions already cover it.
+  // Everyone maintains trunk, so trailing it is a rebase question rather than a submit
+  // one, and the rebase and restack actions already cover it.
   if (base === trunkParts(snapshot).branch) {
     return null;
   }
@@ -298,9 +298,9 @@ type ExistingPullRequest = {
 /**
  * Find the open pull request for `branch`, if any.
  *
- * Only open ones count. A merged or closed pull request must not be reopened by
- * an edit — submitting a branch whose PR merged is a new round of work and wants
- * a new PR, which is also what `gh pr create` does on its own.
+ * Only open ones count. An edit must not reopen a merged or closed pull request: a submit of a
+ * branch whose pull request merged is a new round of work, and it belongs in a new pull request,
+ * which is also what `gh pr create` does on its own.
  */
 async function findPullRequest(
   git: GitRunner,
@@ -335,10 +335,9 @@ async function findPullRequest(
  *
  * `gh pr edit` leaves every field it is not given alone, so the base branch and
  * reviewers survive — confirmed against a stacked pull request, whose base still
- * pointed at the layer below afterwards. The body goes in over stdin so a message
- * containing backticks or quotes cannot be reinterpreted by a shell; `gh` never
- * sees a shell here anyway, but a temp file or an argument would both cap the
- * length.
+ * pointed at the layer below afterwards. The body goes in over stdin, because a temp
+ * file and an argument would both cap the length. Backticks and quotes in a message
+ * survive either way — `gh` never sees a shell here.
  */
 async function editPullRequest(
   git: GitRunner,

@@ -9,7 +9,7 @@
  *
  * That makes undo a *ref* operation, not an inverse of each command: reword,
  * rebase, absorb, and fold all restore the same way, and a command added later
- * gets undo for free by recording a checkpoint.
+ * earns undo by recording a checkpoint, with no code of its own.
  *
  * Two deliberate limits:
  *

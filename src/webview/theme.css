@@ -177,8 +177,8 @@
    * Nothing detects the mode, and nothing should: VS Code stamps the theme kind on the
    * webview's body as a class, so the cascade answers the question. Only the light kinds
    * get a rule. A high-contrast light body can carry `vscode-high-contrast` as well as
-   * `vscode-high-contrast-light`, and with one rule there is no equal-specificity race for
-   * it to lose. The standalone web host sets no class at all and paints from the dark
+   * `vscode-high-contrast-light`, and one rule leaves no equal-specificity race for it to
+   * lose. The standalone web host sets no class at all and paints from the dark
    * fallbacks above, so white is already right there.
    */
   body.vscode-light,

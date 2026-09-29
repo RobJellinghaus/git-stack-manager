@@ -15,8 +15,8 @@
  * applied twice — once when a commit was selected and again after each render — because a
  * conflict can begin while the panel already stands open, and the second pass was missing
  * at first: Submit stayed live mid-conflict and really pushed a branch while `git status`
- * still reported an unmerged path. Derived from `model.conflict` here, so there is nothing
- * to keep in step.
+ * still reported an unmerged path. Derived from `model.conflict` here, so no second copy
+ * needs keeping in step.
  */
 import type { FileChange } from "#git/snapshot";
 import type { RenderModel, UICommit } from "#ui/renderModel";
@@ -45,7 +45,7 @@ const GRIP_SIZE = 18;
  * Double-click the resize grip to fit the box to its text.
  *
  * A long commit body otherwise means dragging the grip, and dragging in a panel that
- * scrolls is fiddly. `scrollHeight` is the height the content wants; the floor keeps a
+ * scrolls is fiddly. `scrollHeight` is the height the content needs; the floor keeps a
  * one-line message from collapsing the box to a sliver, and a second double-click returns
  * it there, so the gesture toggles rather than only ever growing.
  *
@@ -102,7 +102,7 @@ function openAllDescription(files: FilesState): string {
     return "The file list is still loading.";
   }
   if (files.state === "error") {
-    return "The file list did not load, so there is nothing to open.";
+    return "The file list did not load, so Open all files has nothing to open.";
   }
   const count = files.files.length;
   if (!count) {

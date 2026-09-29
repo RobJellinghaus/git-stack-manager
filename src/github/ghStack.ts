@@ -3,7 +3,7 @@
  *
  * GitHub's stacked pull requests (public preview) already model the thing this
  * extension draws: an ordered chain of branches, each based on the one below,
- * submitted as linked PRs. Where `gh stack` has a command, calling it beats
+ * submitted as linked pull requests. Where `gh stack` has a command, calling it beats
  * reimplementing the behaviour — it owns the server-side stack object, and a
  * hand-rolled equivalent would drift from it.
  *
@@ -262,7 +262,7 @@ export function ghStackArguments(command: GhStackCommand): string[] {
     case "submit":
       return ["stack", "submit"];
     case "sync":
-      // --prune drops local branches whose PRs merged, which is the state this
+      // --prune drops local branches whose pull requests merged, which is the state this
       // extension otherwise renders as "upstream gone".
       return command.prune ? ["stack", "sync", "--prune"] : ["stack", "sync"];
     case "push":

@@ -6,26 +6,7 @@ the enforced ones. Prettier owns layout and import order, so neither is a review
 
 Rules marked **(lint)** fail `just lint`. The others are a reviewer's job.
 
-## Prose
-
-Comments, commit messages, CHANGELOG entries, UI text, and Markdown follow these rules. Clarity
-wins where a rule conflicts with it.
-
-- Use active voice, a specific verb, and one idea per sentence.
-- Cut filler and hedges: "can", not "is able to".
-- Carry only what the code cannot show: the why and non-obvious effects. Cut any sentence a reader
-  could recover from the diff.
-- Explain each fact once, where it belongs, and point there from elsewhere.
-- Describe the code as it is. History belongs in the commit message.
-- Do not personify. Code and commands act; data is acted on, and does not want, decide, or know.
-- Describe a failure at full strength, with one concrete example.
-- Use one term per concept, and do not abbreviate it.
-
-Hard-wrap prose at 100 columns. Leave code blocks, ASCII diagrams, and aligned tables unwrapped,
-because wrapping inside them hurts readability. Prettier does not reflow prose inside comments, so
-that wrapping is done by hand. Pad table cells so the pipes line up.
-
-### Commit messages
+## Commit messages
 
 A long commit message goes unread. Use this form, and drop a section with nothing to say:
 

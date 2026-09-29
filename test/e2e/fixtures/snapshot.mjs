@@ -182,7 +182,7 @@ async function pinVersion(page) {
  *
  * `fullPage` does not help: the tree is an inner scroll container, so the page
  * itself is exactly one viewport tall and the overflow is simply cut off. The
- * conflict states are where this bites — the banner pushes the tree down by more
+ * conflict states are where that matters most — the banner pushes the tree down by more
  * than the slack at the bottom, and the first recording of those pictures ended
  * mid-row with nothing to say it had. Enlarging the window is what reveals them.
  *

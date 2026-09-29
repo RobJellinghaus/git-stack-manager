@@ -3,8 +3,8 @@
  *
  * These came from unit tests that drove the old imperative renderer through a hand-written
  * DOM shim. They live here rather than in a new harness because each is about a *response*
- * the UI has to survive, and forging one needs a transport — which the browser gives for free
- * through `page.route`. Nothing else in the suite covers them: the fixture always answers
+ * the UI has to survive, and forging one needs a transport, which `page.route` already
+ * provides in the browser. Nothing else in the suite covers them: the fixture always answers
  * well-formed, so the degraded paths would otherwise ship untested.
  */
 import { expect, reopen, test } from "./fixtures/demoRepo.mjs";

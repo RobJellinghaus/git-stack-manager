@@ -2,9 +2,9 @@
  * ghRunner — the one place the `gh` CLI is spawned.
  *
  * Three kinds of caller share the spawn and want different things from it. Submitting writes
- * to GitHub and must surface its own failure; `gh stack` commands rewrite branches and run
+ * to GitHub and must show its own failure; `gh stack` commands rewrite branches and run
  * for as long as they need; the pull request read in `#github/pullRequests` runs on a timer
- * behind a cache, so it needs a short leash and reports unavailability instead of shouting.
+ * behind a cache, so it needs a short timeout and reports unavailability rather than throwing.
  * They differ only in the timeout and in how a failure is worded, so `spawnGh` owns the
  * process and `classifyGhFailure` owns the detection — one copy of the ENOENT check and the
  * stderr patterns, rather than the three that had already started to drift.

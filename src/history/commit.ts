@@ -14,7 +14,7 @@
  *      That is what lets this run against a dirty index without saving and
  *      restoring it — the files a user did not tick keep their exact index state.
  *
- * Amending is split in two by where the target sits. HEAD takes git's own
+ * The target's position splits amending in two. HEAD takes git's own
  * `commit --amend`, which is one process and keeps the reflog entry a person
  * would expect. A commit deeper in the stack cannot: `--amend` rewrites HEAD's
  * parentage and would orphan every descendant, so `amendIntoAncestor` rebuilds
@@ -221,9 +221,9 @@ function requireSelection(
 /**
  * Check each partly chosen file against the selection, keeping those with a line left out.
  *
- * A file with nothing left out is taken whole, which the pathspec commit already does. A file with
- * chosen lines that is not itself selected would have its lines silently dropped, and one listed
- * twice would leave it unclear which choice applies, so both are refused.
+ * The pathspec commit already takes a file with nothing left out whole. A file with chosen lines
+ * that no selection names would lose those lines silently, and one listed twice would leave it
+ * unclear which choice applies, so `requireLines` refuses both.
  */
 function requireLines(
   selected: string[],

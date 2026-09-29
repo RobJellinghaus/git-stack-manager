@@ -501,8 +501,8 @@ const CANNED_PULL_REQUESTS = [
     reviewDecision: null,
     // A legacy commit status carries `state` and no `conclusion`, and reports a
     // broken run as ERROR rather than FAILURE. Both differences are why this exists
-    // beside #198's red CheckRun: the same red badge is reached by another branch of
-    // the collapsing logic.
+    // beside #198's red CheckRun: another branch of the collapsing logic reaches the
+    // same red badge.
     statusCheckRollup: [
       { __typename: "StatusContext", context: "ci/circleci", state: "ERROR" },
     ],
@@ -581,7 +581,7 @@ const CANNED_PULL_REQUESTS = [
  * `gh pr list` is asked two different questions and each needs its own answer.
  * Submit passes `--head` to find one branch's open pull request; the badge fetch
  * passes `--search` with a `head:` term per branch, `--state all`, with the rollup
- * fields. Both are served by filtering `CANNED_PULL_REQUESTS` and projecting the
+ * fields. Both come from filtering `CANNED_PULL_REQUESTS` and projecting the
  * `--json` fields the caller asked for, exactly as `gh` does — so the branches with
  * no record answer submit with `[]` and send it down the create path, while the
  * branches with one both badge in the tree and, if a demo visitor presses Submit,

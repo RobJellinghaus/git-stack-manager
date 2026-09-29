@@ -299,8 +299,8 @@ const DIFF_SCHEME = "gsm-blob";
  * VS Code the bytes, and VS Code then picks the editor — the image preview for a `.png`, the
  * text editor for everything the old provider already served.
  *
- * Read-only, and every write throws: the blob is a commit's, and there is nowhere for an
- * edit to it to go.
+ * Read-only, and every write throws: the blob is a commit's, and an edit to it has nowhere
+ * to go.
  */
 function registerBlobProvider(repository: Repository): vscode.Disposable {
   const readBlob = blobReader(repository);
@@ -476,7 +476,7 @@ async function runHostAction(
  * uncommitted, so an uncommitted edit shows in this diff too: an edit made here lands there
  * regardless, and a blob would hide it.
  *
- * An image is refused, because the diff editor cannot show one. VS Code draws a `.png`
+ * Refuses an image, because the diff editor cannot show one. VS Code draws a `.png`
  * through the *media-preview* extension's custom editor, and a diff editor hosts only text
  * editors — so a picture on each side came out as the placeholder about a file that "is
  * either binary or uses an unsupported text encoding". The overlay draws both versions, so
@@ -616,10 +616,10 @@ async function isCheckedOut(
  * right.
  *
  * The right side is the working file rather than a blob, so it stays editable — a typo noticed
- * while reading the diff is fixed where it is, which is what Source Control's own change editor
- * offers. Two shapes need naming: a path git reports as a whole folder of new files is refused,
- * since the diff editor takes one file, and a file the working tree no longer holds gets an empty
- * right side so the deletion reads as every line removed.
+ * while reading the diff lands where you noticed it, which is what Source Control's own change
+ * editor offers. Two shapes need naming: refuses a path git reports as a whole folder of new files,
+ * since the diff editor takes one file, and gives a file the working tree no longer holds an empty
+ * right side, so the deletion reads as every line removed.
  */
 async function openWorkingCopyDiff(
   repository: Repository,

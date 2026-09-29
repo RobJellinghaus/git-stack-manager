@@ -6,7 +6,7 @@
  * the stand-in `gh` answers from a script, one reply per call, which is what lets a test
  * make the second answer differ from the first and then check which one the caller got.
  *
- * The badge fields themselves are covered by `check-rollup.test.mjs` and
+ * `check-rollup.test.mjs` covers the badge fields themselves, together with
  * `webview-badges.test.mjs`; nothing here asserts a glyph.
  */
 import assert from "node:assert/strict";

@@ -19,7 +19,7 @@ import type { RenderModel } from "#ui/renderModel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { inWebview, onHostRefresh, rpc, type RpcResult } from "../rpc";
 
-/** How often the browser host re-reads. The webview is poked by its file watcher. */
+/** How often the browser host re-reads. In the webview, a file watcher drives the re-read. */
 const POLL_INTERVAL = 5_000;
 
 export type Toast = { text: string; isError: boolean } | null;
@@ -182,7 +182,7 @@ export function useSmartlog() {
         if (!silent) {
           showToast(response.error);
         }
-        // Replace the placeholder so a first-load failure explains itself instead of
+        // Replace the placeholder so a first-load failure carries its reason instead of
         // freezing; a later poll that recovers re-renders.
         setModel(current => {
           if (!current) {
@@ -208,8 +208,8 @@ export function useSmartlog() {
   );
 
   /**
-   * First paint, then keep up with the host. The browser polls; the webview is poked by the
-   * extension's file watcher, which is cheaper and immediate.
+   * First paint, then keep up with the host. The browser polls; in the webview the extension's
+   * file watcher drives the re-read, which is cheaper and immediate.
    *
    * Fetching in an effect is what the lint rule warns about, and here it is the right shape
    * anyway: this is a subscription to something outside React — a git repository that changes

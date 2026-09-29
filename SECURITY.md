@@ -4,7 +4,7 @@
 
 Report it privately through [GitHub's private vulnerability
 reporting](https://github.com/krvukic/git-stack-manager/security/advisories/new) rather than in a
-public issue. Expect an acknowledgement within a week. There is no bounty programme.
+public issue. Expect an acknowledgement within a week. This project runs no bounty programme.
 
 ## Supported versions
 
@@ -27,6 +27,8 @@ Web mode does add a listener, and its boundary is narrower than it looks:
 - Web mode is a development and demo host. The VS Code extension is the supported way to drive a
   repository you care about.
 
-A report about anything outside that boundary is in scope. Repository content reaching a shell, a
-URL escaping the served bundle directory, and a ref or path being read as a command-line option are
-the three classes worth naming.
+A report about anything outside that boundary is in scope. Three classes are worth naming:
+
+- Repository content reaching a shell.
+- A URL escaping the served bundle directory.
+- A ref or path read as a command-line option.

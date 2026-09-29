@@ -25,16 +25,16 @@
  * server-side branch of their own choosing — a local `dev/playwright_readme` lands as
  * `pr26403` — so `head:` matches nothing and the commit reads unsubmitted long after
  * its pull request merged. The tip sha finds that pull request whatever the remote
- * branch was called, so the response is keyed back to the local branch by sha as well
- * as by name.
+ * branch was called, so this module keys the response back to the local branch by sha as
+ * well as by name.
  *
  * `--search` reads GitHub's search index, which trails a pull request opened seconds ago.
- * Submitting therefore hands its own answer to `remember`, whose records fill in for
+ * Submit therefore hands its own answer to `remember`, whose records fill in for
  * branches a fetch found nothing for; see `cached`.
  *
  * A missing `gh`, a repository with no GitHub remote, or a failed auth check are
  * all normal: this extension works fine on a plain git repo. Those cases
- * degrade to "no PR information" and are reported once, not per refresh.
+ * degrade to "no pull request information", reported once rather than per refresh.
  */
 import { asArray, asRecord, errorMessage } from "#core/values";
 import { classifyGhFailure, ghFailureDetail, spawnGh } from "#github/ghRunner";
@@ -58,10 +58,10 @@ export type PullRequestStatus = {
   checks: "success" | "failure" | "pending" | null;
 };
 
-/** What the UI needs to explain an empty PR panel. */
+/** What the UI needs to explain an empty pull request panel. */
 export type PullRequestAvailability = {
   usable: boolean;
-  /** Why PR status is unavailable, for a one-time notice. Null when usable. */
+  /** Why pull request status is unavailable, for a one-time notice. Null when usable. */
   reason: string | null;
 };
 
@@ -95,7 +95,7 @@ type RememberedEntry = {
   at: number;
 };
 
-/** A local branch and the commit it points at, the two ways to find its PR. */
+/** A local branch and the commit it points at, the two ways to find its pull request. */
 export type BranchTip = {
   name: string;
   sha: string;
@@ -196,7 +196,7 @@ export class PullRequestService {
     );
   }
 
-  /** Why PR status is missing, if it is. Null until a fetch has been tried. */
+  /** Why pull request status is missing, if it is. Null until a fetch has been tried. */
   availabilityReason(): string | null {
     return this.availability?.usable === false
       ? this.availability.reason
@@ -304,8 +304,8 @@ export class PullRequestService {
       }
     }
 
-    // `--state all` so a merged or closed PR still annotates its branch; a stale
-    // local branch whose PR merged is exactly what the user wants to notice.
+    // `--state all` so a merged or closed pull request still annotates its branch; a stale
+    // local branch whose pull request merged is exactly what the user needs to notice.
     const output = await this.runGh([
       "pr",
       "list",
@@ -353,7 +353,7 @@ export class PullRequestService {
         checks: rollUpChecks(entry.statusCheckRollup),
       };
       for (const owner of owners) {
-        // A branch can carry several PRs over time (reopened, or closed then
+        // A branch can carry several pull requests over time (reopened, or closed then
         // replaced). Prefer an open one, else the highest number — the newest.
         const existing = byBranch.get(owner);
         if (!existing || preferPullRequest(status, existing)) {
@@ -493,7 +493,7 @@ export function rollUpChecks(rollup: unknown): PullRequestStatus["checks"] {
   return sawSuccess ? "success" : null;
 }
 
-/** Prefer an open PR, then a draft over nothing, then the newest number. */
+/** Prefer an open pull request, then a draft over nothing, then the newest number. */
 function preferPullRequest(
   candidate: PullRequestStatus,
   existing: PullRequestStatus

@@ -384,8 +384,8 @@ commitFile(
 
 // A shared branch a teammate also pushes to.
 // wrap-lines is the one branch here that is not solo work, and it carries the two
-// states that needs: its middle commit is authored by someone else, the fixture's
-// only non-mine commit outside trunk and the one `gsm.onlyMyCommits` dims; and the
+// states that needs: someone else authors its middle commit, the fixture's only
+// non-mine commit outside trunk and the one `gsm.onlyMyCommits` dims; and the
 // teammate's newest commit is on origin/wrap-lines but not here, so the branch reads
 // "1 behind".
 checkout("main");

@@ -64,7 +64,7 @@ test("a stored config is adopted field by field", () => {
 
 /**
  * The reason the parser reads field by field rather than spreading. A value from a future
- * version — or a hand-edited one — must not be able to render the tree unusable.
+ * version — or a hand-edited one — must never render the tree unusable.
  */
 test("an unrecognised choice falls back rather than being adopted", () => {
   const config = parseConfig({ pillSide: "middle", fileClick: "terminal" });

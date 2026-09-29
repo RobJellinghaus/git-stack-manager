@@ -308,7 +308,7 @@ function FileView({
       {file.previewMediaType ? (
         <ImageDiffView sha={sha} file={file} />
       ) : file.note ? (
-        // Why there are no hunks, when there are none: a binary git cannot draw, or a rename
+        // Why the file has no hunks: a binary git cannot draw, or a rename
         // with no content change. A viewer needs this to say something other than "no changes".
         <div className="p-2 text-body text-muted">{file.note}</div>
       ) : (

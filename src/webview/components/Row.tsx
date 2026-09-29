@@ -6,7 +6,7 @@
  *
  * Pills live in their own group so the Config setting can move the whole set to the far
  * side without reordering anything else. The group is emitted first either way and `order`
- * in the stylesheet does the moving — swapping the elements here would mean two orderings
+ * in the stylesheet does the moving — swapping the elements here would leave two orderings
  * to keep in step.
  */
 import type { Row as ModelRow, UICommit } from "#ui/renderModel";
@@ -206,12 +206,12 @@ export const CommitRow = memo(function CommitRow({
  * reaches trunk — because `git switch origin/main` detaches HEAD rather than putting you on
  * main. A branch that trails the ref is fast-forwarded on the way, so the destination is the
  * row that was clicked rather than wherever the branch was last left; `Repository.gotoTrunk`
- * owns that part. In a bare-ish checkout no local branch reaches trunk, and then there is
- * nothing to offer.
+ * owns that part. In a bare-ish checkout no local branch reaches trunk, so the row offers
+ * no Goto at all.
  *
  * When another worktree has that branch checked out, git refuses the switch. The button
  * stays visible but disabled, naming the directory that holds it: a missing button reads
- * as a bug in the row, whereas the path tells you where to look.
+ * as a bug in the row, whereas the path shows where to look.
  *
  * The badge is how far that local branch trails this row. The branch has a pill of its own,
  * on this row while level and on a `BaseRow` further down once a fetch leaves it behind, but

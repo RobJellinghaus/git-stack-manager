@@ -17,7 +17,7 @@ const { version: MANIFEST_VERSION } = createRequire(import.meta.url)(
 /**
  * Tooltips.
  *
- * The browser's `title` popup cannot be asserted at all — it is drawn by the chrome, not
+ * No assertion can reach the browser's `title` popup — the browser chrome draws it, not
  * the page — so the descriptions were unverifiable, and slow and unstyled besides. They
  * are now a real element, which is what makes this test possible.
  */

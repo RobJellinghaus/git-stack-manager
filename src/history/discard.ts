@@ -98,8 +98,8 @@ async function pathsInHead(
 /**
  * The changes `paths` names, refusing anything a discard must not touch.
  *
- * An unmerged path is refused rather than resolved to HEAD. `checkout HEAD --` on one throws
- * away both sides of the merge *and* git's record that a conflict existed, so a reader who
+ * Discard refuses an unmerged path rather than resolving it to HEAD. `checkout HEAD --` on one
+ * throws away both sides of the merge *and* git's record that a conflict existed, so a reader who
  * meant "undo my edit" would lose the incoming commit's version with no way back. Resolving
  * or aborting the rebase is the operation they want, and both are already on the banner.
  */

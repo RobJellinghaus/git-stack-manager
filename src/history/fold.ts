@@ -51,7 +51,7 @@ export async function foldIntoParent(
   // sibling scan and the rewrite map below; a root commit has no parent to fold into.
   if (parentSha === undefined || !parent) {
     throw new GitError(
-      "The commit below is already on trunk, so there is nothing local to fold into.",
+      "The commit below is already on trunk, so Fold has no local commit to fold into.",
       "fold"
     );
   }

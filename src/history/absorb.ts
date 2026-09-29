@@ -16,8 +16,8 @@
  * misattributed hunk becomes a rebase conflict instead of a wrong-but-clean
  * result the user can inspect and undo.
  *
- * The working copy is never written. Hunks that could not be placed stay exactly
- * where they are and are reported in the tally, so absorb is safely re-runnable.
+ * Nothing writes the working copy. Hunks that absorb could not place stay exactly
+ * where they are, and the tally reports them, so a re-run is safe.
  */
 import { diffLines } from "#git/lineDiff";
 import { GitError, GitRunner } from "#git/runner";
@@ -76,8 +76,8 @@ export async function planAbsorb(
 ): Promise<AbsorbPlan> {
   const stack = stackFor(snapshot, targetSha);
   if (!stack.length) {
-    // Almost always this means trunk is checked out: absorb walks down from HEAD,
-    // so there is nothing local beneath it. Say which branch to switch to.
+    // Almost always trunk is checked out: absorb walks down from HEAD, so no local
+    // commit lies beneath it. Name the branch to switch to.
     const candidates = snapshot.commits
       .flatMap(commit => commit.branches)
       .slice(0, 3);

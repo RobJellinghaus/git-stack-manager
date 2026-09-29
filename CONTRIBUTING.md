@@ -1,6 +1,6 @@
 # Contributing
 
-Issues and pull requests are welcome. There is no contributor agreement to sign.
+Issues and pull requests are welcome. This project asks for no contributor agreement.
 
 ## Getting set up
 
@@ -28,8 +28,8 @@ window after `just install`, since the running instance keeps the old copy loade
 
 ## Before opening a pull request
 
-`just check` runs everything a change has to pass: formatting, types, lint, and both suites. The
-parts, when one of them is what you are iterating on:
+`just check` runs everything a change has to pass: formatting, types, lint, and both suites. Run one
+part on its own while you iterate on it:
 
 ```bash
 just typecheck                  # tsc --noEmit, across all three projects
@@ -65,18 +65,20 @@ traps found while building the webview.
 
 ## Style
 
-[STYLE_GUIDE.md](STYLE_GUIDE.md) is the whole of it. ESLint enforces the machine-checkable subset,
-so `eslint.config.mjs` is where each of those rules carries the reason it exists. Prettier owns
-layout and import order, which keeps both out of review. It covers `ts` and `mjs` sources only,
-leaving HTML and Markdown alone, and it does not reflow prose inside comments: that is hard-wrapped
-at 100 columns by hand.
+[STYLE_GUIDE.md](STYLE_GUIDE.md) covers commit-message form, TypeScript, naming, styling, and tests.
+ESLint enforces the machine-checkable subset, so `eslint.config.mjs` is where each of those rules
+carries the reason it exists. Prettier owns layout and import order, which keeps both out of review.
+
+A separate guide covers prose. [WRITING.md](WRITING.md) states the rules behind every comment,
+CHANGELOG entry, and UI string here, and it is worth a read before you write any of the three;
+coding agents follow it without exception.
 
 ## End-to-end snapshots
 
 `test/e2e/` drives the whole stack rather than a module. Playwright loads the real web host against
 a copy of the demo repository, clicks through an operation, then photographs the result **and**
 asserts the resulting git state. The picture catches a graph that redraws wrong, the git assertions
-catch a rewrite that lands wrong, and those assertions are also what keeps
+catch a rewrite that lands wrong, and those assertions are also what stops
 `just test-e2e-update` from accepting a bad picture.
 
 Snapshots are screenshots because the graph *is* the product. A serialised DOM records that a
@@ -93,11 +95,10 @@ wrong UI as equal. `just test-e2e-update` records with `--update-snapshots=all` 
 flag, since the bare flag corrects only what failed and leaves a drift small enough to pass in
 place. `test/e2e/fixtures/snapshot.mjs` gives the numbers and what the old ones cost.
 
-The images are recorded on Linux, and their path carries no `{platform}` segment on purpose. A
-per-platform baseline is in practice a per-developer baseline, and the second one goes stale. Text
-rendering differs enough between platforms that these tests may exceed the tolerance on macOS. When
-they do, `just test` still covers the logic, and the images are best re-recorded from a Linux
-checkout.
+Record the images on Linux. Their path carries no `{platform}` segment on purpose: a per-platform
+baseline is in practice a per-developer baseline, and the second one goes stale. Text rendering
+differs enough between platforms that these tests may exceed the tolerance on macOS. When they do,
+`just test` still covers the logic, and a Linux checkout is the place to re-record the images.
 
 CI runs `just check-ci`, which compares no pictures. Symbols such as ↑ and ✎ render in whichever
 fallback font the machine has installed, so no CI image reproduces the baselines. Run `just check`
@@ -108,7 +109,7 @@ repository. It is not part of `just check`, so re-record it when a change alters
 
 ## Held-back dependencies
 
-`bun outdated` is expected to list these two:
+`bun outdated` lists these two on purpose:
 
 - **`@types/vscode` 1.106**, against 1.125 released. The types *are* the floor in `engines.vscode`.
   Raising them lets code call APIs that VS Code 1.106 does not have, and nothing fails until a user

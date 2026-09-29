@@ -93,7 +93,7 @@ export async function previewSplit(
   );
   if (hunks.length < 2) {
     throw new GitError(
-      "This commit has only one change, so there is nothing to split apart.",
+      "This commit has only one change, so Split has nothing to separate.",
       "split"
     );
   }

@@ -19,7 +19,7 @@ export const LANE_WIDTH = 18;
 /** Deepest lane the indent classes cover; past this the indent stops growing. */
 export const MAX_INDENT_LANE = 8;
 
-/** What a row draws at its own lane, which decides the node's shape. */
+/** What a row draws at its own lane, which sets the node's shape. */
 export type RowKind = "commit" | "trunk-tip" | "base" | "ellipsis";
 
 export type Line = { x: number; y1: number; y2: number };

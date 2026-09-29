@@ -7,8 +7,8 @@
  *
  * Pure: no git and no I/O. The rebuilt content comes from the two blobs, not from the diff's
  * text, because the diff has lost bytes on the way: it was decoded as UTF-8, and its lines have
- * no endings. The diff only says which line goes where. Its text is compared with the blobs so a
- * diff that no longer describes them is refused instead of applied.
+ * no endings. The diff only says which line goes where. This module compares its text with the
+ * blobs and refuses a diff that no longer describes them rather than applying it.
  *
  * Blobs arrive as latin1 strings, one character per byte, so a file that is not UTF-8 comes out
  * with the bytes it went in with.

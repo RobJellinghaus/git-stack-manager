@@ -13,7 +13,7 @@ import { present } from "../../present.mjs";
 /**
  * Wait for the toast an action raises when it lands.
  *
- * Toasts are asserted rather than photographed: each one hides itself on a timer, so
+ * The suite asserts toasts rather than photographing them: a timer hides each one, so
  * whether it lands in a frame depends on how long the git work took. The snapshot fixture
  * hides it for that reason, which leaves this as the check that the UI reported the right
  * outcome.

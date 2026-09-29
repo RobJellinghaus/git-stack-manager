@@ -244,7 +244,7 @@ test("a branch with no pull request stays unannotated", async ({
     expect(badges[branch]).toBeUndefined();
   }
   // And the stale record: the stand-in answers with a merged pull request for a
-  // branch this repository does not have, which must not surface anywhere.
+  // branch this repository does not have, which must not appear anywhere.
   const rendered = await smartlog.locator("#tree").innerHTML();
   expect(rendered).not.toContain("/pull/189");
   expect(rendered).not.toContain("add-words");

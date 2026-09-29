@@ -178,7 +178,7 @@ function PullRequestBadge({
   );
 }
 
-/** One branch: its pill, its stack position, how it compares to its remote, its PR. */
+/** One branch: its pill, its stack position, how it compares to its remote, its pull request. */
 export function BranchPills({
   branch,
   onOpenUrl,

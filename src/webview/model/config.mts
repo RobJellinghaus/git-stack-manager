@@ -44,9 +44,9 @@ export function clamp(value: number, low: number, high: number): number {
 /**
  * Adopt a stored config field by field, clamping the numbers.
  *
- * A value from a future version — or a hand-edited one — must not be able to render the
- * tree unusable, so nothing is taken on trust: an unrecognised string leaves the
- * default in place, and a size outside the slider's range is pulled back into it.
+ * A value from a future version — or a hand-edited one — must never render the tree
+ * unusable, so `parseConfig` trusts nothing: an unrecognised string leaves the default in
+ * place, and `clamp` pulls a size outside the slider's range back into it.
  */
 export function parseConfig(stored: unknown): Config {
   const config = { ...CONFIG_DEFAULTS };

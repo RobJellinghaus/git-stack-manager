@@ -57,7 +57,7 @@ export type FileDiff = {
   /**
    * The type a viewer can draw this file's blobs as, set when git refused to diff them and
    * the format is one the viewer knows — an image. Null when the hunks are the whole story,
-   * or when nothing can draw the format, and then the note is all there is to show.
+   * or when nothing can draw the format, and then the note is the whole of what to show.
    *
    * Derived here because it takes both halves of the answer: only git knows the file is
    * binary, and only the path says which format. A viewer holding just the note could not
@@ -65,8 +65,8 @@ export type FileDiff = {
    */
   previewMediaType: string | null;
   /**
-   * Why there are no hunks, when there are none: a binary file, or a rename with no
-   * content change. Null when the hunks are the whole story. A viewer needs this to say
+   * Why the file has no hunks: a binary file, or a rename with no content
+   * change. Null when the hunks are the whole story. A viewer needs this to say
    * something other than "no changes" about a file git listed as changed.
    */
   note: string | null;
@@ -135,8 +135,8 @@ const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
  * Two reads, because no single `git diff` covers what the working-copy list shows. `diff HEAD`
  * reports tracked files — the same set the commit form ticks — and says nothing about a file git
  * has never seen, so an untracked file's diff is built here from its bytes. That is what
- * `git diff --no-index` against `/dev/null` would print: with no old side there is nothing to
- * compare, every line is an addition, and the line walk below is the whole of it. A process per
+ * `git diff --no-index` against `/dev/null` would print: with no old side to compare against,
+ * every line is an addition, and the line walk below is the whole of it. A process per
  * untracked file would buy nothing and cost forty of them the first time a build directory
  * escapes the ignore rules.
  *

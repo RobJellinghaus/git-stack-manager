@@ -52,7 +52,7 @@ const sharedRules = /** @type {const} */ ({
  *
  * - `no-misused-promises` catches an async function handed to a slot typed `void`, which is
  *   13 of the webview's event handlers. `no-floating-promises` is already on and cannot see
- *   them: the promise is not dropped, it is passed somewhere that ignores it.
+ *   them: the promise is not dropped but passed somewhere that ignores it.
  * - `no-base-to-string` caught a real one — `String()` on an `unknown` from parsed JSON in
  *   `pullRequests.ts`, which would yield `"[object Object]"` and silently fail every status
  *   comparison below it if GitHub ever returned an object there.
@@ -108,8 +108,8 @@ export default typescriptEslint.config(
   {
     // `.mts` as well as `.ts`. The webview's model and graph modules use that extension
     // so Node can run them directly in the tests, and a glob of `*.ts` matched none of
-    // them — nine files were linted by the recommended presets alone, with no `no-console`,
-    // no `curly`, and none of the react-hooks rules.
+    // them — the recommended presets alone linted nine files, with no `no-console`, no
+    // `curly`, and none of the react-hooks rules.
     files: ["src/**/*.{ts,mts}"],
     languageOptions: {
       parserOptions: {
@@ -152,8 +152,8 @@ export default typescriptEslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
 
-      // A promise dropped on the floor loses its rejection; every call here either
-      // awaits or explicitly discards.
+      // A dropped promise loses its rejection; every call here either awaits or
+      // explicitly discards.
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       ...typedRules,
@@ -162,8 +162,8 @@ export default typescriptEslint.config(
 
   {
     /**
-     * The webview runs in a browser, so it gets the DOM globals the Node side has no
-     * business touching, and its own tsconfig — `src/tsconfig.json` covers Node code
+     * The webview runs in a browser, so it gets the DOM globals the Node side never
+     * touches, and its own tsconfig — `src/tsconfig.json` covers Node code
      * and excludes this directory.
      *
      * `no-console` stays on, as everywhere else: the browser console is for debugging,
@@ -192,8 +192,8 @@ export default typescriptEslint.config(
       /**
        * The Node side bans top-level arrow functions, and a component is exactly that
        * shape — but React components are conventionally `function` declarations anyway,
-       * so the rule carries over unchanged. Only the enum clause is dropped: it lives
-       * in the same rule and there is nothing here to exempt it for.
+       * so the rule carries over unchanged. This block drops only the enum clause: it
+       * lives in the same rule, and nothing here needs an exemption from it.
        */
       "no-restricted-syntax": [
         "error",
@@ -231,11 +231,11 @@ export default typescriptEslint.config(
     },
     rules: {
       /**
-       * The typo net: it is the rule that would have caught the `class="rowhead"` fusion
+       * The typo net: the rule that would have caught the `class="rowhead"` fusion
        * `classes.ts` exists to prevent.
        *
        * Every name below is a deliberate hook rather than a style, which is why an
-       * allowlist had to come first. Three kinds, and the kind decides whether removing
+       * allowlist had to come first. Three kinds, and the kind determines whether removing
        * one is safe:
        *
        * - Selected by the end-to-end suite (`chip`, `chooselines`, `dffile`, `dfimage`,
@@ -244,7 +244,7 @@ export default typescriptEslint.config(
        *   test rather than the appearance.
        * - Targeted by a descendant selector from a parent's class string (`code`, `mark`,
        *   `st`, and the `graph.css` set). `[&>.mark]:text-add` in `ChangesOverlay` is the
-       *   shape — the child is named by the parent, so nothing here is dead.
+       *   shape — the parent names the child, so nothing here is dead.
        * - Styled by `graph.css`, which is hand-written CSS Tailwind never emitted
        *   (`basehint`, `content`, `ellipsis-label`, `ellipsis-row`, `foreign`, `goto-btn`,
        *   `halo`, `node`, `pillgroup`, `rail`, `railfill`, `row`, `sha`, `subject`).
@@ -352,9 +352,9 @@ export default typescriptEslint.config(
   },
 
   {
-    // The end-to-end suite spans two runtimes: most of it is Node, but the
-    // serializer's page reader is stringified and evaluated in the browser, so
-    // `document` is legitimately in scope there.
+    // The end-to-end suite spans two runtimes: most of it is Node, but the serializer
+    // stringifies its page reader and evaluates it in the browser, so `document` is
+    // legitimately in scope there.
     files: ["test/e2e/**/*.mjs"],
     languageOptions: { globals: pageEvaluationGlobals },
     rules: {

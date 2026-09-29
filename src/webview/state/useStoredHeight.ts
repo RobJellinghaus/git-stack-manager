@@ -7,8 +7,8 @@
  * handed back for React to render, and whatever the grip leaves behind is read out again.
  *
  * `ResizeObserver` rather than a drag handler, because the grip raises no event a listener can
- * subscribe to. It also catches the double-click fit for free, which a handler on the grip
- * would have missed.
+ * subscribe to. It also catches the double-click fit, which a handler on the grip would
+ * have missed.
  *
  * The stored height is read once per mount and never re-rendered from. After a drag the
  * element's own inline height is already what the reader sees, so pushing the same number back

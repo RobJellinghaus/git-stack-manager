@@ -12,9 +12,9 @@
  * failed left every branch in it remembered and therefore never retried — the branch stayed in
  * the tree, and turning the setting off and on again was the only way back.
  *
- * "As they appear" is bounded by what the host knows: pull request status is fetched once per
- * load and on *Refresh PRs*, so a merge that lands while this view sits open reaches the model
- * at the next of those, not within seconds.
+ * "As they appear" runs only as fast as the host learns: two reads bring pull request status in,
+ * one per load and one on *Refresh PRs*, so a merge that lands while this view stands open reaches
+ * the model at the next of those rather than within seconds.
  *
  * An effect, because the trigger is a model arriving from the host rather than a click.
  */

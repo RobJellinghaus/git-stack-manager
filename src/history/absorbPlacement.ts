@@ -56,8 +56,8 @@
  *
  * ## What happens to a hunk that cannot be placed
  *
- * Nothing. It stays in the working copy and is reported in the tally. That is
- * absorb's contract, and it is what makes the command safely re-runnable.
+ * Nothing. It stays in the working copy, and the tally reports it. That is absorb's
+ * contract, and it is what makes a re-run safe.
  */
 
 /**
@@ -299,7 +299,7 @@ export function analyseHunk(map: OwnerMap, hunk: Hunk): Fixup[] {
  * so the applied result and the reported count match what a person would call one
  * change. Mirrors absorb's `_optimizefixups`.
  *
- * Merging is refused across a gap. Two per-line fixups either side of a mid-stack
+ * `coalesce` refuses to merge across a gap. Two per-line fixups either side of a mid-stack
  * deletion look adjacent, but joining them recreates exactly the block that the
  * split was there to avoid, and the deleted line would end up on the wrong side of
  * the replacement.

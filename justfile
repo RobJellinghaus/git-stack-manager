@@ -1,17 +1,17 @@
 # git-stack-manager recipes. Run `just --list` for the full set.
 #
-# The packaged filename is derived from package.json inside the two recipes that need it,
-# not in a top-level variable. Just evaluates a backtick assignment before running any
-# recipe, so a variable that reads the manifest makes every invocation depend on the
+# The two recipes that need the packaged filename read it from package.json themselves,
+# rather than from a top-level variable. Just evaluates a backtick assignment before running
+# any recipe, so a variable that reads the manifest makes every invocation depend on the
 # reader being installed: `just init-repo` used to need python3 to print its own help.
 
 # Bun has no Fedora package, so a machine without Homebrew gets the upstream installer.
-# The floors are checked here because a version too old fails much later and names a git
+# This recipe checks the floors, because a version too old fails much later and names a git
 # flag rather than a version: `for-each-ref --include-root-refs` is what git 2.44 rejects.
 #
 # The node version comes from `.nvmrc`, which fnm, nvm, and asdf all read. It is a floor, not a
 # preference: the unit suite imports `.mts` modules as source, and an older node answers
-# `ERR_UNKNOWN_FILE_EXTENSION` for one of those unless it is passed a flag.
+# `ERR_UNKNOWN_FILE_EXTENSION` for one of those unless you pass it a flag.
 [doc("Install bun and node, and check the git version floor")]
 init-repo:
     #!/usr/bin/env bash
@@ -117,10 +117,10 @@ lint:
 lint-fix:
     bun run lint:fix
 
-# `just canonical-classes --fix` rewrites them. Separate from `lint` because the ESLint
-# plugin's version of this rule calls Tailwind without a root font size, so it never sees
-# that `min-h-[110px]` is `min-h-27.5`. The editor's Tailwind extension does report it, and
-# this is that check on the command line.
+# `just canonical-classes --fix` rewrites every class that has a shorter spelling. Separate
+# from `lint` because the ESLint plugin's version of this rule calls Tailwind without a root
+# font size, so it never sees that `min-h-[110px]` is `min-h-27.5`. The editor's Tailwind
+# extension does report it, and this recipe is that check on the command line.
 [doc("Report Tailwind classes that have a shorter spelling")]
 canonical-classes *args:
     node scripts/canonical-classes.mjs {{args}}
@@ -216,7 +216,7 @@ web-bg-stop port="6175":
 # request badge would be invisible in the one place a person clicks through. The
 # canned answers are the end-to-end suite's own, so the demo cannot drift from what
 # the tests assert. The shim lives in a temp directory this recipe exports PATH for,
-# so neither anything outside it nor any real repository can see it.
+# so nothing outside it, and no real repository, can see it.
 [doc("Generate the strkit demo repo in .demo-repo/ and serve its smartlog")]
 demo port="6175": build
     #!/usr/bin/env bash

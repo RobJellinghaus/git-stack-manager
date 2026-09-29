@@ -6,8 +6,8 @@
  * asks which commit owns each changed line and sends the change there. An amend has already been
  * told the commit, so the question inverts: can the change be made in the target without
  * rewriting anything a later commit wrote? It can when it replaces only the target's own lines,
- * and no later commit inserted or deleted a line inside it. Anything else is refused, naming the
- * later commit, because amending into that one is usually what was meant.
+ * and no later commit inserted or deleted a line inside it. `amendPlacement` refuses anything
+ * else, naming the later commit, because that commit is usually the intended target.
  *
  * The refusal is the fix. Amend used to graft the whole working file into the target and skip any
  * descendant that had changed it. Given a target holding `feature` and a later commit adding

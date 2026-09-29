@@ -1,7 +1,7 @@
 /**
  * Webview entry point.
  *
- * No `StrictMode`. It double-invokes effects in development to surface impure ones, and
+ * No `StrictMode`. It double-invokes effects in development to reveal impure ones, and
  * every effect here that runs twice costs a git subprocess — the model read, the pull
  * request fetch. The build is the same either way (this is not a development server), so it
  * would only slow the first paint.

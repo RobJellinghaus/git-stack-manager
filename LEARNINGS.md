@@ -18,12 +18,12 @@ either. One copy is easier to re-check than two.
 
 ## `height: auto` does not grow a `nowrap` flex container, however tall its items get
 
-A flex container's cross size comes from its flex *lines*. With `flex-wrap: nowrap` there is exactly
-one line no matter what happens inside the items, so a text child that breaks onto a second line is
-laid out at the container's original height and the overflow is painted outside it, or clipped under
-`overflow: hidden`.
+A flex container's cross size comes from its flex *lines*. With `flex-wrap: nowrap` the container
+has exactly one line, whatever happens inside the items, so the browser lays out a text child that
+breaks onto a second line at the container's original height and paints the overflow outside the
+container, or clips it under `overflow: hidden`.
 
-This is what the row-wrapping mode was doing. `body.wrap-rows` lifted `height` to `auto` and raised
+The row-wrapping mode hit exactly that. `body.wrap-rows` lifted `height` to `auto` and raised
 `white-space: normal` on the subject, but left the base rule's `flex-wrap: nowrap` and
 `overflow: hidden` in place, so 25 of 28 rows silently truncated their second line.
 
@@ -36,8 +36,8 @@ been there.
 
 **What follows from it.** A mode that turns wrapping on has to lift every part of the rule that
 turned it off: `flex-wrap` and `overflow`, not just `height`. And an assertion of the form "at least
-one element differs" is satisfied by an accident. Prefer one that names the count, or that measures
-the thing directly (here: whether any subject's rendered text exceeds its box).
+one element differs" passes by accident. Prefer one that names the count, or that measures the thing
+directly (here: whether any subject's rendered text exceeds its box).
 
 Re-check it:
 
@@ -47,9 +47,9 @@ grep -A6 'wrap-rows .row .content' src/webview/graph.css   # flex-wrap, height, 
 
 ## A shorter class name can lose to the arbitrary value it replaced
 
-Two utilities that set the same property are decided by source order, and Tailwind emits the numeric
-scale in ascending order with arbitrary values _after_ all of it. So replacing an arbitrary value
-with its scale equivalent can move it from the winning side to the losing side:
+Source order decides between two utilities that set the same property, and Tailwind emits the
+numeric scale in ascending order with arbitrary values _after_ all of it. Replacing an arbitrary
+value with its scale equivalent can therefore move it from the winning side to the losing side:
 
 ```
 before:  .px-1\.5   .px-2   .px-2\.5   .px-3   .px-\[7px\]     <- px-[7px] beats px-2
@@ -81,8 +81,8 @@ Tailwind emits its utilities inside `@layer utilities`. Any rule _outside_ a lay
 because the cascade sorts unlayered declarations above layered ones before it ever considers order
 or specificity.
 
-This bit three times during the conversion, and each time the symptom was the same and deeply
-misleading: the element's `class` attribute read exactly right, and its computed style disagreed.
+The conversion hit this three times, and each time the symptom was the same and deeply misleading:
+the element's `class` attribute read exactly right, and its computed style disagreed.
 
 | Leftover rule                       | What it suppressed                                    |
 | ----------------------------------- | ----------------------------------------------------- |
@@ -91,7 +91,7 @@ misleading: the element's `class` attribute read exactly right, and its computed
 | `#absorb-preview { display: none }` | the preview panel's own `block`, so it never appeared |
 
 **What follows from it.** While a hand-written rule survives on an element, utilities on that
-element are advisory. So a region has to be converted _and_ its old rules deleted in the same step.
+element are advisory. So convert a region _and_ delete its old rules in the same step.
 A half-converted element is worse than an unconverted one, because it looks converted. When a class
 list plainly says one thing and the computed style says another, look for an unlayered rule before
 doubting the utility.
@@ -139,7 +139,7 @@ printf 'export const T=({a}:{a:boolean})=><div className={`row${a?" head":""}`}/
   | bunx prettier --config prettier.config.js --parser typescript | grep className
 ```
 
-## Tailwind's hover variants are gated on the device being able to hover
+## Tailwind's hover variants need a device that can hover
 
 `hover:` and `group-hover:` compile inside `@media (hover: hover)`:
 
@@ -153,8 +153,8 @@ printf 'export const T=({a}:{a:boolean})=><div className={`row${a?" head":""}`}/
 
 That is the right default for decoration, and wrong when hover is how a control is _reached_. The
 file rows keep their actions invisible until hovered, so on a touch device the query fails and the
-buttons become permanently unreachable. Hover is being treated as a capability when the requirement
-is only "the pointer is over this row".
+buttons become permanently unreachable. The variant treats hover as a capability when the
+requirement is only "the pointer is over this row".
 
 **An earlier version of this section also claimed headless Chromium fails the query, making the
 reveal untestable. That is false**, and worth recording as its own trap: it was the stated reason
@@ -175,9 +175,9 @@ a parallel one per group:
 
 That covers `hover:`, `group-hover:`, and the named `group-hover/file:` in one line, and the emitted
 selectors are otherwise byte-identical, with only the `@media` wrapper gone. The four
-`@custom-variant` rules this replaced needed a twelve-line comment, and two of them (`hovered:`,
-`group-hovered:`) had no call sites at all. Any reveal-on-hover pattern still needs a focus path,
-because a keyboard has no pointer: `IconButton` pairs `group-hover/file:visible` with
+`@custom-variant` rules that one line replaced needed a twelve-line comment, and two of them
+(`hovered:`, `group-hovered:`) had no call sites at all. Any reveal-on-hover pattern still needs a
+focus path, because a keyboard has no pointer: `IconButton` pairs `group-hover/file:visible` with
 `focus-visible:visible`.
 
 Re-check it from the repository root, because the Tailwind CLI resolves `@import "tailwindcss"`
@@ -191,10 +191,10 @@ printf '@import "tailwindcss";\n@source inline("group-hover:visible");\n' > prob
 
 ## A note on method
 
-None of the traps above was found by looking at a screenshot diff. A picture says a row moved; it
-does not say which property moved it. What worked every time was diffing _computed styles_ against
-the previous build, taking font size, line height, family, and every box metric for each element in
-the region under conversion, then reading the one or two lines that differed:
+No screenshot diff found any of the traps above. A picture shows that a row moved, not which
+property moved it. Diffing _computed styles_ against the previous build worked every time: take
+font size, line height, family, and every box metric for each element in the region under
+conversion, then read the one or two lines that differed:
 
 ```js
 const grab = sel => {
@@ -214,8 +214,8 @@ be `normal`" in one step. It also caught one more trap: Tailwind's `leading-norm
 is not CSS `normal`, and the two are a whole pixel apart at these sizes. Hence `--leading-auto:
 normal` in the theme, and `text-body/auto` wherever a converted rule never set a line-height.
 
-The line height is the whole of that hazard, and the distinction matters. It is Tailwind's *named
-sizes* that bundle one, so `text-xs` is 12px **and** 16px of leading, and the utility syntax is not
-what does it. So `text-xs/auto` is safe where a bare `text-xs` is not, and the project's own
-`--text-*` tokens deliberately define no `--text-*--line-height`, which forces a caller to say which
-it wants.
+The line height is the whole of that hazard, and the distinction matters. Tailwind's *named sizes*
+bundle a line height, so `text-xs` is 12px **and** 16px of leading; the utility syntax is not what
+does it. So `text-xs/auto` is safe where a bare `text-xs` is not, and the project's own `--text-*`
+tokens deliberately define no `--text-*--line-height`, which forces a caller to name the line height
+it needs.

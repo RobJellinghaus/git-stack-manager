@@ -142,9 +142,9 @@ export function amendFile(repo, name, content, message, identity = ME) {
  * Write the `.git/gh-stack` state file describing `stacks`, where each stack is
  * `{ trunk, branches }` and every branch names the layer it sits on.
  *
- * The file is written rather than produced by `gh stack init`, because a fixture
- * every machine must be able to build cannot depend on a preview `gh` extension
- * being installed. Verified byte-identical to what `gh stack init` v0.1.0 writes
+ * This helper writes the file rather than calling `gh stack init`, because a fixture
+ * every machine must build cannot depend on a preview `gh` extension being
+ * installed. Verified byte-identical to what `gh stack init` v0.1.0 writes
  * for the demo's own topology, apart from the `repository` field.
  *
  * A layer still sitting on the tip below it therefore records that tip, while a

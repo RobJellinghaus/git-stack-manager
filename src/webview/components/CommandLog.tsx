@@ -1,8 +1,8 @@
 /**
  * The command log: the exact git commands each action ran, grouped by action.
  *
- * Hiding the panel hands its quarter of the viewport back to the tree, so the choice has
- * to outlive the page — a per-session toggle would spring the log open on every reload.
+ * A hidden panel hands its quarter of the viewport back to the tree, so the choice has to
+ * outlive the page — a per-session toggle would open the log again on every reload.
  */
 import { useEffect, useRef } from "react";
 import { classes } from "../classes";

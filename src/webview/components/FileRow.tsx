@@ -2,8 +2,8 @@
  * One file in a list: its status letter, its path, and what you can do with it.
  *
  * Two shapes. A `pickable` row carries the checkbox that decides whether the change goes into
- * the next commit or amend; a plain row is a link to the file, which is what every commit's
- * file list wants.
+ * the next commit or amend; a plain row is a link to the file, which is the shape every commit's
+ * file list takes.
  */
 import type { FileChange } from "#git/snapshot";
 import { classes } from "../classes";

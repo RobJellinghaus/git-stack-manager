@@ -4,7 +4,7 @@
  * `theme.css` brings in Tailwind and maps the editor's own theme tokens onto it. `graph.css` is
  * the commit graph's geometry, which stays hand-written for the reasons its own header gives.
  *
- * Everything else is Tailwind utilities on the components, so there is no third file.
+ * Everything else is Tailwind utilities on the components, so no third file exists.
  */
 @import "./theme.css";
 @import "./graph.css";

@@ -122,11 +122,11 @@ async function deleteRefs(
 /**
  * Delete the merged branches `requested` names, and answer what went alongside what stayed.
  *
- * Naming the branches is what lets the automatic path skip one Undo brought back: it asks for
- * the branches it has not asked for before, so a branch restored by hand is not deleted again
- * when the next pull request merges. Passing null takes every branch that qualifies, which is
- * what *Clear merged* asks for. A requested branch that no longer qualifies is skipped, not
- * refused: the rule is the host's, and the request may predate a commit on it.
+ * An explicit name list lets the automatic path skip one Undo brought back: it asks for the
+ * branches it has not asked for before, so nothing deletes a hand-restored branch again when the
+ * next pull request merges. A null list takes every branch that qualifies, which is what
+ * *Clear merged* asks for. Skips a requested branch that no longer qualifies rather than refusing
+ * it: the rule is the host's, and the request may predate a commit on it.
  *
  * One `update-ref --stdin` batch in the ordinary case, and one call per branch only after that
  * batch is refused. The batch used to be the whole story, which meant a single branch committed

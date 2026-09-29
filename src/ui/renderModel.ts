@@ -17,7 +17,7 @@ import {
 import { deletionRefusal } from "#history/deleteBranch";
 import { MergedBranch, mergedBranches } from "#history/pruneMerged";
 
-/** A branch pill: its name, how it compares to its remote, and its PR if any. */
+/** A branch pill: its name, how it compares to its remote, and its pull request if any. */
 export type UIBranch = {
   name: string;
   sync: BranchSync | null;
@@ -121,9 +121,9 @@ export type RenderModel = {
   mergedBranches: MergedBranch[];
   /** True when `gh stack` tracks at least one branch here. */
   hasGhStack: boolean;
-  /** Why PR badges are absent, when they are. Null when PR status works. */
+  /** Why pull request badges are absent, when they are. Null when that status works. */
   pullRequestNotice?: string | null;
-  /** How the last PR fetch went, for the header's freshness indicator. */
+  /** How the last pull request fetch went, for the header's freshness indicator. */
   pullRequestRefresh?: PullRequestRefreshState | null;
   trunkRef: string | null;
   headSha: string;

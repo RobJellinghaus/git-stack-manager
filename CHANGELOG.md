@@ -3,6 +3,19 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version
 numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2026-09-29
+
+### Changed
+
+- [WRITING.md](WRITING.md) states the prose rules for every word this repository ships: comments,
+  commit messages, CHANGELOG entries, UI text, and Markdown. AGENTS.md requires that guide on every
+  change, and adds the two conventions the guide leaves out, 100-column wrapping and padded table
+  cells. STYLE_GUIDE.md keeps commit-message form and the code conventions.
+- Five refusals name the control that refused rather than reporting that nothing exists to act on:
+  Goto with no local trunk branch, Pull on a detached HEAD, Pull on a branch tracking no remote,
+  Fold at the bottom of a stack, and Split on a one-change commit. Two disabled-control
+  descriptions follow, for Amend into and Open all files.
+
 ## [0.16.0] - 2026-09-28
 
 ### Added

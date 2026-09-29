@@ -97,8 +97,8 @@ function describeFiles(files: FileChange[]): string {
 /**
  * Two sides of one image as `data:` URIs, from whichever bytes the caller found.
  *
- * Refuses rather than returning an empty preview, because every refusal is something the reader
- * wants said: a format nothing here draws, or bytes too large to send inline. The overlay prints
+ * Refuses rather than returning an empty preview, because the reader needs each reason: a
+ * format nothing here draws, or bytes too large to send inline. The overlay prints
  * the refusal where the picture would have gone. A missing side is not a refusal — an addition
  * has no before, a deletion no after — and travels as null.
  *
@@ -315,15 +315,15 @@ export class Repository {
    * gone has nothing left to measure against. Neither case needs a message — the checkout is
    * the whole of what the row offered.
    *
-   * The snapshot is read here rather than taken from the click, because the ref to
-   * fast-forward onto decides where HEAD ends up, and the webview's copy can be a poll old.
+   * This method re-reads the snapshot rather than taking it from the click, because the ref to
+   * fast-forward onto determines where HEAD ends up, and the webview's copy can be a poll old.
    */
   async gotoTrunk(): Promise<GotoTrunkOutcome> {
     const snapshot = await this.read();
     const branch = snapshot.trunkBranch;
     if (!branch || !snapshot.trunkRef) {
       throw new GitError(
-        "No local branch reaches trunk, so there is nothing to check out. Create one from the remote ref first.",
+        "No local branch reaches trunk, so Goto has no branch to check out. Create one from the remote ref first.",
         "goto trunk"
       );
     }
@@ -359,7 +359,7 @@ export class Repository {
     const snapshot = await this.read();
     if (!snapshot.headBranch) {
       throw new GitError(
-        "HEAD is detached, so there is no branch to pull. Goto a branch first.",
+        "HEAD is detached, so Pull has no branch to fast-forward. Goto a branch first.",
         "pull"
       );
     }
@@ -377,7 +377,7 @@ export class Repository {
       ]));
     if (!upstream) {
       throw new GitError(
-        `"${snapshot.headBranch}" tracks no remote branch, so there is nothing to pull. Submit it first.`,
+        `"${snapshot.headBranch}" tracks no remote branch, so Pull has nothing to fetch. Submit it first.`,
         "pull"
       );
     }

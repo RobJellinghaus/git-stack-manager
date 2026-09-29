@@ -25,8 +25,8 @@ import {
 /**
  * Fill the scratch index behind `environment` with HEAD plus the chosen changes.
  *
- * `lines` holds the partly chosen files, each of which must also be in `paths`. A file whose diff
- * no longer matches the one its lines were chosen from is refused, and nothing is staged for it.
+ * `lines` holds the partly chosen files, each of which must also be in `paths`. Refuses a file
+ * whose diff no longer matches the one its lines were chosen from, and stages nothing for it.
  */
 export async function stageChosenChanges(
   git: GitRunner,

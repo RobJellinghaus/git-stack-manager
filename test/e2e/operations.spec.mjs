@@ -3,9 +3,9 @@
  *
  * Each test photographs the result *and* asserts the resulting git state. The two
  * halves cover different failures: the picture catches a graph that redraws wrong,
- * the git assertions catch a rewrite that lands wrong — and they are what stops a
- * bad picture from being accepted by `just test-e2e-update`. A screenshot alone
- * proves the UI drew something plausible, not that the commits moved.
+ * the git assertions catch a rewrite that lands wrong — and they are what stops
+ * `just test-e2e-update` from accepting a bad picture. A screenshot alone proves
+ * the UI drew something plausible, not that the commits moved.
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -802,8 +802,8 @@ test("Refresh local state re-reads local git state and logs the commands it ran"
  * poll landing mid-sentence — the case the suite otherwise cannot reach, since the fixture
  * stubs `setInterval` out. Three separate pieces of state ride through it: the commit form's
  * draft, the panel editor's draft in a component the parent keys on the sha, and the ticks
- * `syncSelection` reconciles against what git now reports. Each was destroyed by a poll at
- * some point, and the commit was then refused for having no summary.
+ * `syncSelection` reconciles against what git now reports. A poll destroyed each of the three
+ * at some point, and the commit was then refused for having no summary.
  */
 test("a re-read keeps a half-typed message and the ticks the reader set", async ({
   demoRepository,

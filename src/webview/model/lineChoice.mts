@@ -6,9 +6,9 @@
  * choice that leaves out every line is the same as unticking the file. `useLineChoices` keeps
  * both of those collapsed, so a choice here always means "some lines".
  *
- * A line is named by its side and number — `-3` for old line 3 removed, `+5` for new line 5
- * added — because that is what the host checks against its own diff, and the text alone would
- * not tell two identical lines apart.
+ * A choice names a line by its side and number — `-3` for old line 3 removed, `+5` for new
+ * line 5 added — because that is what the host checks against its own diff, and because two
+ * lines can carry identical text.
  */
 import type { DiffHunk, DiffLine } from "#git/diff";
 import type { FileChange } from "#git/snapshot";
