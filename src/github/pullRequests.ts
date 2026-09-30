@@ -171,8 +171,8 @@ export class PullRequestService {
     /**
      * How many of a fetch's branches have been answered, and the total — called once per
      * batch rather than once per branch, since a batch is the unit that actually returns.
-     * A fetch that covers one branch never calls this at all, matching the header's own
-     * choice to show nothing for a fetch too quick to watch.
+     * Batches run concurrently, so this fires as each one settles rather than in a fixed
+     * order; a fetch of one branch in one batch still calls it once, at completion.
      */
     private readonly onProgress: (
       done: number,
@@ -320,23 +320,40 @@ export class PullRequestService {
     const { owner, repo } = await this.resolveRepo();
     const byBranch = new Map<string, PullRequestStatus>();
     let done = 0;
-    for (const batch of chunk(findable, BRANCHES_PER_BATCH)) {
-      const output = await this.runGh(
-        [
-          "api",
-          "graphql",
-          "-f",
-          `owner=${owner}`,
-          "-f",
-          `repo=${repo}`,
-          "-F",
-          "query=@-",
-        ],
-        lookupQuery(batch)
-      );
-      applyBatch(batch, output, byBranch);
-      done += batch.length;
-      this.onProgress(done, findable.length);
+    // Run every batch at once rather than one after another: a slow or failed round trip
+    // then costs only its own page, matching the module comment and the CHANGELOG's claim
+    // that one bad batch does not delay or blank out the rest.
+    const outcomes = await Promise.allSettled(
+      chunk(findable, BRANCHES_PER_BATCH).map(async batch => {
+        const output = await this.runGh(
+          [
+            "api",
+            "graphql",
+            "-f",
+            `owner=${owner}`,
+            "-f",
+            `repo=${repo}`,
+            "-F",
+            "query=@-",
+          ],
+          lookupQuery(batch)
+        );
+        applyBatch(batch, output, byBranch);
+        done += batch.length;
+        this.onProgress(done, findable.length);
+      })
+    );
+    const failures = outcomes.filter(
+      (outcome): outcome is PromiseRejectedResult =>
+        outcome.status === "rejected"
+    );
+    // Every batch failing is indistinguishable from GitHub, or the network, being down —
+    // the caller then keeps the previous snapshot rather than reporting one file's worth of
+    // batches as the whole answer. Fewer than every batch failing keeps what the rest found;
+    // `runGh` has already logged and recorded the reason for each one that did not.
+    const [firstFailure] = failures;
+    if (firstFailure && failures.length === outcomes.length) {
+      throw firstFailure.reason;
     }
     this.availability = { usable: true, reason: null };
     return byBranch;
@@ -372,11 +389,9 @@ export class PullRequestService {
    * or a short one that still 504'd, and the log line below can.
    */
   private async runGh(args: string[], input?: string): Promise<string> {
-    // A query can run past a thousand characters; the log wants to know one ran, not to
-    // reproduce it.
-    const summary = args
-      .map(arg => (arg.length > 200 ? `<${arg.length} chars omitted>` : arg))
-      .join(" ");
+    // The query itself travels over `input`, never among these arguments, so every
+    // argument here is short enough to log in full.
+    const summary = args.join(" ");
     const startedAt = Date.now();
     this.log(`gh ${summary}`);
     try {
@@ -408,26 +423,37 @@ function chunk<T>(items: T[], size: number): T[][] {
   return batches;
 }
 
-/** The fields read off every pull request node, by either lookup below. */
-const PULL_REQUEST_NODE_FIELDS =
-  "number state isDraft title url headRefName headRefOid reviewDecision";
+/**
+ * The fields read off every pull request node, by either lookup below.
+ *
+ * `commits(last: 1)` is the pull request's own head, which is what the rollup has to come
+ * from: the branch's local tip is not necessarily what GitHub has run checks against, and
+ * an amend or a rebase since the last push moves the local tip away from that head without
+ * moving the pull request at all.
+ */
+const PULL_REQUEST_NODE_FIELDS = `number state isDraft title url headRefName headRefOid reviewDecision
+    commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }`;
 
 /**
  * One GraphQL query answering every branch in `batch` at once, two ways: `n{index}` by
  * name, `c{index}` by tip commit. Both are exact, structured lookups, so a branch with no
  * match on either resolves to an empty list or `null` rather than an error — read
  * defensively in `applyBatch` rather than assumed present.
+ *
+ * `orderBy` on the name lookup is not decoration: without it GitHub lists a branch name's
+ * pull requests oldest first, so `first: 3` on a name reused by four closed pull requests
+ * and one open one returns the three oldest closed ones and drops the open one `applyBatch`
+ * would otherwise have found.
  */
 function lookupQuery(batch: BranchTip[]): string {
   const aliases = batch
     .map(
       (branch, index) => `
-  n${index}: pullRequests(headRefName: ${JSON.stringify(branch.name)}, states: [OPEN, CLOSED, MERGED], first: ${PULL_REQUESTS_PER_BRANCH}) {
+  n${index}: pullRequests(headRefName: ${JSON.stringify(branch.name)}, states: [OPEN, CLOSED, MERGED], orderBy: { field: CREATED_AT, direction: DESC }, first: ${PULL_REQUESTS_PER_BRANCH}) {
     nodes { ${PULL_REQUEST_NODE_FIELDS} }
   }
   c${index}: object(oid: ${JSON.stringify(branch.sha)}) {
     ... on Commit {
-      statusCheckRollup { state }
       associatedPullRequests(first: ${PULL_REQUESTS_PER_BRANCH}) {
         nodes { ${PULL_REQUEST_NODE_FIELDS} }
       }
@@ -436,6 +462,15 @@ function lookupQuery(batch: BranchTip[]): string {
     )
     .join("");
   return `query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) {${aliases}\n} }`;
+}
+
+/** A pull request node's own head rollup, from its `commits(last: 1)` field. */
+function nodeChecks(
+  entry: Record<string, unknown>
+): PullRequestStatus["checks"] {
+  const commits = asArray(asRecord(entry.commits)?.nodes);
+  const commit = asRecord(asRecord(commits[0])?.commit);
+  return rollupState(commit?.statusCheckRollup);
 }
 
 /** Read `lookupQuery(batch)`'s answer into `byBranch`, keyed by `batch`'s own branches. */
@@ -449,11 +484,14 @@ function applyBatch(
   );
   batch.forEach((branch, index) => {
     const commit = asRecord(repository?.[`c${index}`]);
-    // Only the commit lookup has a check run to report; a name match with no matching
-    // commit — the branch moved since the pull request's head was read — has none to give.
-    const checks = rollupState(commit?.statusCheckRollup);
     const byName = asArray(asRecord(repository?.[`n${index}`])?.nodes);
-    const byCommit = asArray(asRecord(commit?.associatedPullRequests)?.nodes);
+    // `associatedPullRequests` answers with every pull request that contains the commit
+    // anywhere in its history, not only the one it heads — a lower branch's tip sits inside
+    // every pull request stacked on top of it too. Keeping only the node whose own head is
+    // this exact commit is what tells the two apart.
+    const byCommit = asArray(
+      asRecord(commit?.associatedPullRequests)?.nodes
+    ).filter(value => asRecord(value)?.headRefOid === branch.sha);
     for (const value of [...byName, ...byCommit]) {
       const entry = asRecord(value);
       if (!entry) {
@@ -470,7 +508,7 @@ function applyBatch(
           typeof entry.reviewDecision === "string"
             ? entry.reviewDecision
             : null,
-        checks,
+        checks: nodeChecks(entry),
       };
       // A branch can carry several pull requests over time (reopened, or closed then
       // replaced). Prefer an open one, else the highest number — the newest.

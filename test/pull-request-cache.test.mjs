@@ -25,14 +25,13 @@ import { scratchRoot } from "./repoFixture.mjs";
 const TIPS = [{ name: "feature-a", sha: "a".repeat(40) }];
 
 /**
- * `c0`'s answer for `TIPS[0]`'s commit, as GitHub's GraphQL API would shape it: a rollup
- * plus the pull requests associated with that exact commit.
+ * `c0`'s answer for `TIPS[0]`'s commit, as GitHub's GraphQL API would shape it: the pull
+ * request associated with that exact commit, carrying its own head's rollup.
  *
  * @param {Partial<Record<string, unknown>>} [fields]
  */
 function commitNode(fields = {}) {
   return {
-    statusCheckRollup: { state: "SUCCESS" },
     associatedPullRequests: {
       nodes: [
         {
@@ -44,6 +43,9 @@ function commitNode(fields = {}) {
           headRefName: "feature-a",
           headRefOid: TIPS[0].sha,
           reviewDecision: "APPROVED",
+          commits: {
+            nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS" } } }],
+          },
         },
       ],
     },
@@ -53,7 +55,6 @@ function commitNode(fields = {}) {
 
 /** `c0`'s answer when nothing has caught up to this commit yet. */
 const NOTHING_FOUND = {
-  statusCheckRollup: null,
   associatedPullRequests: { nodes: [] },
 };
 

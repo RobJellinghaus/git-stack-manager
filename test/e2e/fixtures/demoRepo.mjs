@@ -454,9 +454,9 @@ const CANNED_PULL_REQUESTS = [
     headRefName: "local-experiment",
     baseRefName: "pad-utils",
     reviewDecision: null,
-    // No non-cancelled check ran, so the rollup holds nothing and the badge shows no
-    // CI glyph at all.
-    checksState: null,
+    // Every check on this pull request was cancelled, and GitHub's own rollup counts a
+    // cancelled check as a failure rather than as nothing having run.
+    checksState: "FAILURE",
   },
   {
     number: 189,
@@ -652,17 +652,6 @@ function listPullRequests() {
   );
 }
 
-// Prefer an open pull request, then the highest number — the newest. Mirrors
-// \`preferPullRequest\` in #github/pullRequests, which is what decides among the several
-// nodes this can return for one commit once the real caller has them.
-function betterPullRequest(candidate, existing) {
-  const openness = (pullRequest) => (pullRequest.state === "OPEN" ? 1 : 0);
-  if (openness(candidate) !== openness(existing)) {
-    return openness(candidate) > openness(existing);
-  }
-  return candidate.number > existing.number;
-}
-
 function nodeFrom(pullRequest) {
   return {
     number: pullRequest.number,
@@ -673,6 +662,19 @@ function nodeFrom(pullRequest) {
     headRefName: pullRequest.headRefName,
     headRefOid: pullRequest.headRefOid,
     reviewDecision: pullRequest.reviewDecision,
+    // The pull request's own head rollup, which is where #github/pullRequests reads
+    // checks from — not from the commit object either lookup found it through.
+    commits: {
+      nodes: [
+        {
+          commit: {
+            statusCheckRollup: pullRequest.checksState
+              ? { state: pullRequest.checksState }
+              : null,
+          },
+        },
+      ],
+    },
   };
 }
 
@@ -698,13 +700,7 @@ function answerGraphql() {
       repository["c" + index] = null;
       continue;
     }
-    const commitRecord = matching.reduce((best, pullRequest) =>
-      betterPullRequest(pullRequest, best) ? pullRequest : best,
-    );
     repository["c" + index] = {
-      statusCheckRollup: commitRecord.checksState
-        ? { state: commitRecord.checksState }
-        : null,
       associatedPullRequests: { nodes: matching.map(nodeFrom) },
     };
   }

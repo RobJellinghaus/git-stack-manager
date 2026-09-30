@@ -31,13 +31,6 @@ import * as vscode from "vscode";
 
 let panel: vscode.WebviewPanel | undefined;
 /**
- * Where a pull request fetch's duration and outcome go — background polling that no
- * per-action command log ever sees, and the one place a silent 20-second timeout becomes
- * legible. Lives for the extension's whole session, not the panel's, so a fetch mid-close
- * still lands somewhere.
- */
-const pullRequestLog = vscode.window.createOutputChannel("Git Stack Manager");
-/**
  * The refresh subscriptions of the panel currently open, disposed with it rather than with
  * the extension: each open creates its own, and a set left behind would go on watching for a
  * panel that no longer exists.
@@ -72,7 +65,8 @@ const LAUNCHER_PROVIDER: vscode.TreeDataProvider<never> = {
  * resets `visible` to false, which is what lets the next click fire this again.
  */
 function wireActivityBarLauncher(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  pullRequestLog: vscode.OutputChannel
 ): vscode.Disposable {
   const view = vscode.window.createTreeView("gsm.launcher", {
     treeDataProvider: LAUNCHER_PROVIDER,
@@ -81,17 +75,27 @@ function wireActivityBarLauncher(
     if (!event.visible) {
       return;
     }
-    openPanel(context);
+    openPanel(context, pullRequestLog);
     await vscode.commands.executeCommand("workbench.action.closeSidebar");
   });
   return vscode.Disposable.from(view, opening);
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  /**
+   * Where a pull request fetch's duration and outcome go — background polling that no
+   * per-action command log ever sees, and the one place a silent 20-second timeout becomes
+   * legible. Created here rather than at module load, so it exists only once activation has
+   * actually run, and disposed through `context.subscriptions` for the same reason every
+   * other subscription below is.
+   */
+  const pullRequestLog = vscode.window.createOutputChannel("Git Stack Manager");
   context.subscriptions.push(
     pullRequestLog,
-    wireActivityBarLauncher(context),
-    vscode.commands.registerCommand("gsm.open", () => openPanel(context)),
+    wireActivityBarLauncher(context, pullRequestLog),
+    vscode.commands.registerCommand("gsm.open", () =>
+      openPanel(context, pullRequestLog)
+    ),
     vscode.commands.registerCommand("gsm.refresh", () =>
       panel?.webview.postMessage({ type: "refresh" })
     ),
@@ -110,7 +114,10 @@ function repositoryCwd(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
-function openPanel(context: vscode.ExtensionContext) {
+function openPanel(
+  context: vscode.ExtensionContext,
+  pullRequestLog: vscode.OutputChannel
+) {
   const cwd = repositoryCwd();
   if (!cwd) {
     vscode.window.showErrorMessage(
@@ -125,18 +132,16 @@ function openPanel(context: vscode.ExtensionContext) {
 
   const configuration = vscode.workspace.getConfiguration("gsm");
   const trunk = configuration.get<string>("trunk") || undefined;
-  const repository = new Repository(
-    cwd,
-    trunk,
-    line =>
+  const repository = new Repository(cwd, trunk, {
+    pullRequestLog: line =>
       pullRequestLog.appendLine(`[${new Date().toLocaleTimeString()}] ${line}`),
-    (done, total) =>
+    pullRequestProgress: (done, total) =>
       void panel?.webview.postMessage({
         type: "pullRequestProgress",
         done,
         total,
-      })
-  );
+      }),
+  });
   const controller = new Controller(repository);
   const blobProvider = registerBlobProvider(repository);
 
