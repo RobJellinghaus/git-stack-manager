@@ -21,9 +21,9 @@ test("every rollup state maps to the badge's three-way verdict", () => {
 });
 
 /**
- * A state that is not a string reads as absent rather than decided, the same guard the
- * array-based version needed: `String(value)` on a non-string produces a truthy value
- * matching no case, which would otherwise fall past every branch undetected.
+ * A state that is not a string reads as absent rather than decided: `String(value)` on a
+ * non-string produces a truthy value matching no case, which would otherwise fall past
+ * every branch undetected.
  */
 test("an unreadable state reports nothing rather than a guess", () => {
   assert.equal(rollupState({ state: { unexpected: "shape" } }), null);

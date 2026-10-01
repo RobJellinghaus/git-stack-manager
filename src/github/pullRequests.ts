@@ -23,9 +23,9 @@
  * similar string anywhere in the repository's history.
  *
  * One alias per lookup per branch batches all of it into one query per batch;
- * `BRANCHES_PER_BATCH` keeps each batch small so one slow round trip delays only its own
- * branches rather than the whole stack, and so a failure — GitHub still has bad days —
- * costs a page, not the whole fetch.
+ * `BRANCHES_PER_BATCH` keeps each batch small so a failure — GitHub still has bad days —
+ * costs a page's branches rather than the whole fetch, and so progress has something to
+ * report between pages.
  *
  * GitHub can take a moment to associate a just-opened pull request with its commit, same
  * as it can take a moment to process a push at all. Submit hands its own answer to
@@ -139,10 +139,9 @@ export class PullRequestService {
    * finished processing yet with an empty list rather than an error. So the refresh that
    * follows a submit still asks about a pull request the API does not know about yet,
    * finds nothing, and caches that nothing for a minute — leaving the button offering to
-   * open the pull
-   * request it just opened. Submit learns the number from `pr create` directly, which
-   * does not depend on GitHub having caught up, so what it learned is merged over the
-   * fetched map until the next fetch does too.
+   * open the pull request it just opened. Submit learns the number from `pr create`
+   * directly, which does not depend on GitHub having caught up, so what it learned is
+   * merged over the fetched map until the next fetch does too.
    */
   private remembered = new Map<string, RememberedEntry>();
   private availability: PullRequestAvailability | null = null;
@@ -162,10 +161,10 @@ export class PullRequestService {
      * wants the same nothing.
      *
      * This runs on a timer with no user action to blame it on, so the per-action command
-     * log a submit or a rebase populates never sees it — see `runGh` below for why that
-     * log stays scoped to actions. A timeout that only ever says "GitHub did not answer
-     * in time" cannot be told apart from a slow query, a dropped connection, or GitHub
-     * genuinely rate-limiting this token, and the difference matters for what to do next.
+     * log a submit or a rebase populates never sees it. A timeout that only ever says
+     * "GitHub did not answer in time" cannot be told apart from a slow query, a dropped
+     * connection, or GitHub genuinely rate-limiting this token, and the difference matters
+     * for what to do next.
      */
     private readonly log: (line: string) => void = () => {},
     /**
@@ -286,16 +285,19 @@ export class PullRequestService {
     }
 
     this.inFlight = this.fetch(wanted)
-      .then(byBranch => {
+      .then(({ byBranch, failedBranches, partialFailure }) => {
         this.cache = { byBranch, fetchedAt: Date.now() };
-        // The search index has caught up on these branches, so a direct record adds
-        // nothing — and the fetched copy carries the checks and review decision that a
-        // record taken at submit time cannot.
+        // The GraphQL lookup now has an answer for these branches, so a direct record
+        // adds nothing — and the fetched copy carries the checks and review decision
+        // that a record taken at submit time cannot. A branch whose batch failed this
+        // time keeps whatever record it had, since `byBranch` itself does too.
         for (const branch of byBranch.keys()) {
-          this.remembered.delete(branch);
+          if (!failedBranches.has(branch)) {
+            this.remembered.delete(branch);
+          }
         }
-        this.lastAttemptSucceeded = true;
-        this.lastError = null;
+        this.lastAttemptSucceeded = partialFailure === null;
+        this.lastError = partialFailure;
         return this.cached();
       })
       .catch((error: unknown) => {
@@ -311,20 +313,21 @@ export class PullRequestService {
     return this.inFlight;
   }
 
-  private async fetch(
-    branches: BranchTip[]
-  ): Promise<Map<string, PullRequestStatus>> {
-    // A branch with no tip commit — never actually seen, `BranchTip.sha` is not
-    // optional, but the type does not forbid an empty string — has nothing to look up.
+  private async fetch(branches: BranchTip[]): Promise<{
+    byBranch: Map<string, PullRequestStatus>;
+    failedBranches: Set<string>;
+    partialFailure: string | null;
+  }> {
+    // A branch with no tip commit has nothing to look up.
     const findable = branches.filter(branch => branch.sha);
     const { owner, repo } = await this.resolveRepo();
     const byBranch = new Map<string, PullRequestStatus>();
     let done = 0;
-    // Run every batch at once rather than one after another: a slow or failed round trip
-    // then costs only its own page, matching the module comment and the CHANGELOG's claim
-    // that one bad batch does not delay or blank out the rest.
+    const batches = chunk(findable, BRANCHES_PER_BATCH);
+    // Run every batch at once: the fetch as a whole still waits for the slowest one,
+    // but a failed round trip then costs only its own page's branches, not the rest.
     const outcomes = await Promise.allSettled(
-      chunk(findable, BRANCHES_PER_BATCH).map(async batch => {
+      batches.map(async batch => {
         const output = await this.runGh(
           [
             "api",
@@ -338,31 +341,54 @@ export class PullRequestService {
           ],
           lookupQuery(batch)
         );
-        applyBatch(batch, output, byBranch);
+        try {
+          applyBatch(batch, output, byBranch);
+        } catch (error: unknown) {
+          this.log(`  → batch did not parse: ${errorMessage(error)}`);
+          throw error;
+        }
         done += batch.length;
         this.onProgress(done, findable.length);
       })
     );
-    const failures = outcomes.filter(
-      (outcome): outcome is PromiseRejectedResult =>
-        outcome.status === "rejected"
+    const failedBatches = batches.filter(
+      (_, index) => outcomes[index]?.status === "rejected"
     );
-    // Every batch failing is indistinguishable from GitHub, or the network, being down —
-    // the caller then keeps the previous snapshot rather than reporting one file's worth of
-    // batches as the whole answer. Fewer than every batch failing keeps what the rest found;
-    // `runGh` has already logged and recorded the reason for each one that did not.
-    const [firstFailure] = failures;
-    if (firstFailure && failures.length === outcomes.length) {
-      throw firstFailure.reason;
+    if (failedBatches.length && failedBatches.length === batches.length) {
+      // Every batch failing is indistinguishable from GitHub, or the network, being
+      // down — the caller then keeps the previous snapshot rather than reporting an
+      // empty answer as the whole fetch.
+      const rejected = outcomes.find(
+        (outcome): outcome is PromiseRejectedResult =>
+          outcome.status === "rejected"
+      ) as PromiseRejectedResult;
+      throw rejected.reason;
     }
+    const failedBranches = new Set(
+      failedBatches.flatMap(batch => batch.map(branch => branch.name))
+    );
+    const partialFailure = failedBranches.size
+      ? (this.availabilityReason() ?? "A batch of branches failed to fetch.")
+      : null;
     this.availability = { usable: true, reason: null };
-    return byBranch;
+    // A branch whose batch failed keeps whatever the previous snapshot answered for
+    // it, rather than losing its badge because this attempt's answer is only partial.
+    const previous = this.cache?.byBranch;
+    for (const batch of failedBatches) {
+      for (const branch of batch) {
+        const stale = previous?.get(branch.name);
+        if (stale) {
+          byBranch.set(branch.name, stale);
+        }
+      }
+    }
+    return { byBranch, failedBranches, partialFailure };
   }
 
   /**
-   * The owner and repository name `object(oid: …)` needs but `--search` never did: a
-   * structured GraphQL query has no equivalent of `gh pr list` inferring the repository
-   * from `cwd`'s remote, so this asks once and the fetch above trusts the cache.
+   * The owner and repository name every query below needs: a structured GraphQL query has
+   * no equivalent of `gh pr list` inferring the repository from `cwd`'s remote, so this
+   * asks once and the fetch above trusts the cache.
    */
   private async resolveRepo(): Promise<{ owner: string; repo: string }> {
     if (this.repoIdentity) {
@@ -423,15 +449,20 @@ function chunk<T>(items: T[], size: number): T[][] {
   return batches;
 }
 
+/** The fields read off every pull request node, by either lookup below, except its rollup. */
+const PULL_REQUEST_SUMMARY_FIELDS = `number state isDraft title url headRefName headRefOid reviewDecision`;
+
 /**
- * The fields read off every pull request node, by either lookup below.
+ * `PULL_REQUEST_SUMMARY_FIELDS` plus the pull request's own head commit's rollup.
  *
  * `commits(last: 1)` is the pull request's own head, which is what the rollup has to come
  * from: the branch's local tip is not necessarily what GitHub has run checks against, and
  * an amend or a rebase since the last push moves the local tip away from that head without
- * moving the pull request at all.
+ * moving the pull request at all. The by-commit lookup below already names that head
+ * directly, so its nodes use `PULL_REQUEST_SUMMARY_FIELDS` and read the rollup once off the
+ * commit object instead of asking for it again per pull request.
  */
-const PULL_REQUEST_NODE_FIELDS = `number state isDraft title url headRefName headRefOid reviewDecision
+const PULL_REQUEST_NODE_FIELDS = `${PULL_REQUEST_SUMMARY_FIELDS}
     commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }`;
 
 /**
@@ -440,10 +471,12 @@ const PULL_REQUEST_NODE_FIELDS = `number state isDraft title url headRefName hea
  * match on either resolves to an empty list or `null` rather than an error — read
  * defensively in `applyBatch` rather than assumed present.
  *
- * `orderBy` on the name lookup is not decoration: without it GitHub lists a branch name's
- * pull requests oldest first, so `first: 3` on a name reused by four closed pull requests
- * and one open one returns the three oldest closed ones and drops the open one `applyBatch`
- * would otherwise have found.
+ * `orderBy` is not decoration on either lookup: without it, GitHub lists both a branch
+ * name's pull requests and a commit's associated pull requests oldest first, so `first: 3`
+ * on a name reused by four closed pull requests and one open one returns the three oldest
+ * closed ones and drops the open one — and on a commit a later-created pull request also
+ * contains, newest first is what keeps that pull request's own entry inside the page
+ * instead of being crowded out by older ones that merely contain the same commit.
  */
 function lookupQuery(batch: BranchTip[]): string {
   const aliases = batch
@@ -454,8 +487,9 @@ function lookupQuery(batch: BranchTip[]): string {
   }
   c${index}: object(oid: ${JSON.stringify(branch.sha)}) {
     ... on Commit {
-      associatedPullRequests(first: ${PULL_REQUESTS_PER_BRANCH}) {
-        nodes { ${PULL_REQUEST_NODE_FIELDS} }
+      statusCheckRollup { state }
+      associatedPullRequests(first: ${PULL_REQUESTS_PER_BRANCH}, orderBy: { field: CREATED_AT, direction: DESC }) {
+        nodes { ${PULL_REQUEST_SUMMARY_FIELDS} }
       }
     }
   }`
@@ -484,16 +518,22 @@ function applyBatch(
   );
   batch.forEach((branch, index) => {
     const commit = asRecord(repository?.[`c${index}`]);
-    const byName = asArray(asRecord(repository?.[`n${index}`])?.nodes);
+    const byName = asArray(asRecord(repository?.[`n${index}`])?.nodes).map(
+      value => {
+        const entry = asRecord(value);
+        return { entry, checks: entry ? nodeChecks(entry) : null };
+      }
+    );
     // `associatedPullRequests` answers with every pull request that contains the commit
     // anywhere in its history, not only the one it heads — a lower branch's tip sits inside
     // every pull request stacked on top of it too. Keeping only the node whose own head is
-    // this exact commit is what tells the two apart.
-    const byCommit = asArray(
-      asRecord(commit?.associatedPullRequests)?.nodes
-    ).filter(value => asRecord(value)?.headRefOid === branch.sha);
-    for (const value of [...byName, ...byCommit]) {
-      const entry = asRecord(value);
+    // this exact commit is what tells the two apart, and that match's rollup is the commit
+    // object's own, already read once above rather than per pull request.
+    const commitChecks = rollupState(commit?.statusCheckRollup);
+    const byCommit = asArray(asRecord(commit?.associatedPullRequests)?.nodes)
+      .filter(value => asRecord(value)?.headRefOid === branch.sha)
+      .map(value => ({ entry: asRecord(value), checks: commitChecks }));
+    for (const { entry, checks } of [...byName, ...byCommit]) {
       if (!entry) {
         continue;
       }
@@ -508,7 +548,7 @@ function applyBatch(
           typeof entry.reviewDecision === "string"
             ? entry.reviewDecision
             : null,
-        checks: nodeChecks(entry),
+        checks,
       };
       // A branch can carry several pull requests over time (reopened, or closed then
       // replaced). Prefer an open one, else the highest number — the newest.
@@ -557,11 +597,8 @@ function upperCaseField(value: unknown): string {
  * `Commit.statusCheckRollup.state` into the badge's own three-way verdict.
  *
  * This is GitHub's own rollup of every check and status on the commit, already collapsed
- * to one enum — unlike `gh pr list --json statusCheckRollup`, which synthesizes an array of
- * every individual check run and status context per result. That synthesis is what made
- * the old `--search`-based fetch expensive per match rather than merely broad; asking for
- * the rollup GitHub already computes, on the one commit each batch names directly, costs
- * one enum comparison instead.
+ * to one enum, so reading it costs one enum comparison rather than synthesizing a verdict
+ * from every individual check run and status context on the commit.
  *
  * Exported for the tests. `EXPECTED` is a check that has not started, which reads the same
  * as one still running.

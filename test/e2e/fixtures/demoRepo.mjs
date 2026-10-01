@@ -662,8 +662,9 @@ function nodeFrom(pullRequest) {
     headRefName: pullRequest.headRefName,
     headRefOid: pullRequest.headRefOid,
     reviewDecision: pullRequest.reviewDecision,
-    // The pull request's own head rollup, which is where #github/pullRequests reads
-    // checks from — not from the commit object either lookup found it through.
+    // The by-name lookup reads checks from here, the pull request's own head rollup; the
+    // by-commit lookup reads the same rollup off the commit object directly, in
+    // \`answerGraphql\` below.
     commits: {
       nodes: [
         {
@@ -701,6 +702,9 @@ function answerGraphql() {
       continue;
     }
     repository["c" + index] = {
+      statusCheckRollup: matching[0].checksState
+        ? { state: matching[0].checksState }
+        : null,
       associatedPullRequests: { nodes: matching.map(nodeFrom) },
     };
   }

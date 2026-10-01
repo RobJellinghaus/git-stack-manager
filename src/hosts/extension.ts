@@ -133,9 +133,9 @@ function openPanel(
   const configuration = vscode.workspace.getConfiguration("gsm");
   const trunk = configuration.get<string>("trunk") || undefined;
   const repository = new Repository(cwd, trunk, {
-    pullRequestLog: line =>
+    log: line =>
       pullRequestLog.appendLine(`[${new Date().toLocaleTimeString()}] ${line}`),
-    pullRequestProgress: (done, total) =>
+    progress: (done, total) =>
       void panel?.webview.postMessage({
         type: "pullRequestProgress",
         done,

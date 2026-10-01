@@ -32,8 +32,12 @@ numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
   a branch amended or rebased since its last push keeps the pull request's real CI result.
 - Every check on a pull request being cancelled now shows the CI badge as a failure, matching
   GitHub's own rollup, rather than showing no glyph at all.
-- One batch's failed round trip no longer discards every other batch's badges; a stack with
-  many branches keeps whatever answered even when one batch failed.
+- One batch's failed round trip no longer discards every other batch's badges, or reports the
+  fetch as having succeeded; a stack with many branches keeps whatever answered, the failed
+  batch's branches keep their last known badges, and the freshness note says the attempt failed.
+- A branch pushed under another server-side name, whose tip commit also sits in more than three
+  other pull requests, now finds the one it heads instead of losing its badge to older pull
+  requests that merely contain the same commit.
 
 ## [0.16.1] - 2026-09-29
 

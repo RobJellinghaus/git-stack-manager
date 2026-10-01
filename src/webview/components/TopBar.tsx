@@ -230,7 +230,7 @@ export function TopBar({
         <Button
           id="btn-prs"
           disabled={pullRequestsLoading}
-          title="Re-read pull request status through the gh CLI, one network call per 20 branches, then cached for a minute — this button bypasses that cache. Local git state comes from Refresh local state instead."
+          title="Re-read pull request status through the gh CLI, a handful of network calls, then cached for a minute — this button bypasses that cache. Local git state comes from Refresh local state instead."
           onClick={onRefreshPullRequests}
         >
           {pullRequestsLoading

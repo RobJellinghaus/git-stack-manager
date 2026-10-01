@@ -29,7 +29,7 @@ export type SubmitOutcome = {
   /**
    * Title and draft state as the pull request now holds them, so a caller can draw the
    * badge from this outcome. The commit lookup the badges normally come from can trail a
-   * pull request opened a moment ago, same as the search index it replaced did.
+   * pull request opened a moment ago.
    */
   title: string;
   isDraft: boolean;

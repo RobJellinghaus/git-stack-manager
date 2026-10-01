@@ -25,13 +25,14 @@ import { scratchRoot } from "./repoFixture.mjs";
 const TIPS = [{ name: "feature-a", sha: "a".repeat(40) }];
 
 /**
- * `c0`'s answer for `TIPS[0]`'s commit, as GitHub's GraphQL API would shape it: the pull
- * request associated with that exact commit, carrying its own head's rollup.
+ * `c0`'s answer for `TIPS[0]`'s commit, as GitHub's GraphQL API would shape it: the commit's
+ * own rollup, and the pull request associated with that exact commit.
  *
  * @param {Partial<Record<string, unknown>>} [fields]
  */
 function commitNode(fields = {}) {
   return {
+    statusCheckRollup: { state: "SUCCESS" },
     associatedPullRequests: {
       nodes: [
         {
@@ -43,9 +44,6 @@ function commitNode(fields = {}) {
           headRefName: "feature-a",
           headRefOid: TIPS[0].sha,
           reviewDecision: "APPROVED",
-          commits: {
-            nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS" } } }],
-          },
         },
       ],
     },
@@ -288,4 +286,127 @@ test("a fetch reports progress once per batch, not once per branch", async t => 
 
   // One branch is one batch, so progress fires exactly once, already at completion.
   assert.deepEqual(progress, [[1, 1]]);
+});
+
+/**
+ * Put a `gh` on PATH that answers `repo view` fixed, and `api graphql` by name from
+ * `pullRequests`, failing outright for any call whose batch asks about a branch named in
+ * the file written at `failPath` — a comma-separated list a test can rewrite between
+ * refreshes to make one specific batch start failing.
+ *
+ * @param {import("node:test").TestContext} t
+ * @param {{
+ *   number: number,
+ *   state: string,
+ *   headRefName: string,
+ *   headRefOid: string,
+ * }[]} pullRequests
+ */
+function installBatchFailableGh(t, pullRequests) {
+  const root = scratchRoot(t, "gsm-pr-partial-");
+  const binDirectory = join(root, "fakebin");
+  mkdirSync(binDirectory, { recursive: true });
+  const worldPath = join(root, "world.json");
+  const failPath = join(root, "fail");
+  writeFileSync(worldPath, JSON.stringify(pullRequests));
+  writeFileSync(failPath, "");
+  writeFileSync(
+    join(binDirectory, "gh"),
+    `#!/usr/bin/env node
+const fs = require("fs");
+const args = process.argv.slice(2);
+if (args[0] === "repo" && args[1] === "view") {
+  process.stdout.write(JSON.stringify({ owner: { login: "example" }, name: "example" }));
+  process.exit(0);
+}
+const pullRequests = JSON.parse(fs.readFileSync(${JSON.stringify(worldPath)}, "utf8"));
+let query = "";
+process.stdin.on("data", chunk => (query += chunk));
+process.stdin.on("end", () => {
+  const failing = fs
+    .readFileSync(${JSON.stringify(failPath)}, "utf8")
+    .split(",")
+    .filter(Boolean);
+  const names = [...query.matchAll(/headRefName: "([^"]*)"/g)].map(m => m[1]);
+  if (names.some(name => failing.includes(name))) {
+    process.stderr.write("GraphQL: the query took too long to execute.\\n");
+    process.exit(1);
+  }
+  const repository = {};
+  names.forEach((name, index) => {
+    const pullRequest = pullRequests.find(p => p.headRefName === name);
+    repository["n" + index] = {
+      nodes: pullRequest
+        ? [
+            {
+              number: pullRequest.number,
+              state: pullRequest.state,
+              isDraft: false,
+              title: "pull request " + pullRequest.number,
+              url: "https://github.com/example/example/pull/" + pullRequest.number,
+              headRefName: pullRequest.headRefName,
+              headRefOid: pullRequest.headRefOid,
+              reviewDecision: null,
+              commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
+            },
+          ]
+        : [],
+    };
+    repository["c" + index] = null;
+  });
+  process.stdout.write(JSON.stringify({ data: { repository } }));
+});
+`,
+    { mode: 0o755 }
+  );
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDirectory}:${originalPath}`;
+  t.after(() => {
+    process.env.PATH = originalPath;
+  });
+  return {
+    cwd: root,
+    /** @param {string[]} names */
+    fail: names => writeFileSync(failPath, names.join(",")),
+  };
+}
+
+test("one batch's failure keeps that batch's branches at their last known answer", async t => {
+  // 21 branches split into two batches of 20 and 1, so failing the second batch leaves
+  // the first batch's 20 branches to answer normally.
+  const branches = Array.from({ length: 21 }, (_, index) => ({
+    name: `branch-${String(index).padStart(2, "0")}`,
+    sha: index.toString(16).padStart(40, "0"),
+  }));
+  const gh = installBatchFailableGh(
+    t,
+    branches.map((branch, index) => ({
+      number: 100 + index,
+      state: "OPEN",
+      headRefName: branch.name,
+      headRefOid: branch.sha,
+    }))
+  );
+  const service = new PullRequestService(gh.cwd);
+
+  await service.refresh(branches, true);
+  assert.equal(service.cached().size, 21);
+  const before = present(
+    service.cached().get("branch-20"),
+    "branch-20 before the failing refresh"
+  );
+
+  gh.fail(["branch-20"]);
+  await service.refresh(branches, true);
+
+  // The failed batch's branch keeps its last known answer rather than losing its badge.
+  assert.deepEqual(service.cached().get("branch-20"), before);
+  // The batch that did not fail still answers.
+  assert.equal(
+    present(service.cached().get("branch-00"), "branch-00").number,
+    100
+  );
+  // The attempt is reported as failed, not silently as a success.
+  assert.equal(service.refreshState().lastAttemptSucceeded, false);
+  assert.ok(service.refreshState().lastError);
 });
