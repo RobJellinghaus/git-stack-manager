@@ -107,7 +107,11 @@ export type TopBarProps = {
   unseenLogEntries: number;
   openDrawer: string | null;
   pullRequestsLoading: boolean;
-  /** How far a fetch in progress has gotten; null when idle or too quick to watch. */
+  /**
+   * How far a fetch in progress has gotten; null when idle. A stack within one batch's
+   * worth of branches still gets a value, but it jumps straight to done — only a stack
+   * spanning several batches sees it move.
+   */
   pullRequestProgress: { done: number; total: number } | null;
   pulling: boolean;
   restacking: boolean;
