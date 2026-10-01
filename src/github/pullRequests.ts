@@ -110,6 +110,12 @@ const FETCH_TIMEOUT_MILLISECONDS = 20_000;
  * rather than one page of it, and about giving progress something to report between pages.
  */
 const BRANCHES_PER_BATCH = 20;
+/**
+ * Batches in flight at once. GitHub's secondary rate limits penalise a burst of concurrent
+ * requests from one token more than they do the same requests spread out, so a stack large
+ * enough to need several batches still sends them a couple at a time rather than all at once.
+ */
+const BATCH_CONCURRENCY = 2;
 /** Pull requests read per lookup, per branch. A branch can carry more than one over its
  * life — reopened, or closed then replaced — and `preferPullRequest` picks the one that
  * matters, but the API has to be asked for more than the one most callers will ever want. */
@@ -324,10 +330,12 @@ export class PullRequestService {
     const byBranch = new Map<string, PullRequestStatus>();
     let done = 0;
     const batches = chunk(findable, BRANCHES_PER_BATCH);
-    // Run every batch at once: the fetch as a whole still waits for the slowest one,
-    // but a failed round trip then costs only its own page's branches, not the rest.
-    const outcomes = await Promise.allSettled(
-      batches.map(async batch => {
+    // `BATCH_CONCURRENCY` batches at a time: a failed round trip still costs only its own
+    // page's branches, not the rest, without sending every batch's request at once.
+    const outcomes = await mapWithConcurrency(
+      batches,
+      BATCH_CONCURRENCY,
+      async batch => {
         const output = await this.runGh(
           [
             "api",
@@ -349,7 +357,7 @@ export class PullRequestService {
         }
         done += batch.length;
         this.onProgress(done, findable.length);
-      })
+      }
     );
     const failedBatches = batches.filter(
       (_, index) => outcomes[index]?.status === "rejected"
@@ -447,6 +455,37 @@ function chunk<T>(items: T[], size: number): T[][] {
     batches.push(items.slice(start, start + size));
   }
   return batches;
+}
+
+/**
+ * `items.map(run)`, settled like `Promise.allSettled`, but never running more than `limit`
+ * calls to `run` at once. A worker picks up the next item as soon as one of its own
+ * finishes, rather than waiting for every item in a fixed group to finish together.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  run: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const outcomes = new Array<PromiseSettledResult<R>>(items.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < items.length) {
+      const index = next++;
+      try {
+        outcomes[index] = {
+          status: "fulfilled",
+          value: await run(items[index]!),
+        };
+      } catch (reason: unknown) {
+        outcomes[index] = { status: "rejected", reason };
+      }
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return outcomes;
 }
 
 /** The fields read off every pull request node, by either lookup below, except its rollup. */
